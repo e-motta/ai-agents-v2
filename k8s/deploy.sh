@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Simple deployment script for CloudWalk Kubernetes manifests
+# Simple deployment script for AI Agents Kubernetes manifests
 set -e
 
-echo "🚀 Deploying CloudWalk Application to Kubernetes..."
+echo "🚀 Deploying AI Agents Application to Kubernetes..."
 
 # Check if kubectl is available
 if ! command -v kubectl &> /dev/null; then
@@ -35,8 +35,8 @@ kubectl apply -f secrets.yaml
 # IMPORTANT: This step assumes a local Kubernetes environment (e.g., Minikube, Docker Desktop)
 # where the cluster can access locally built images. For other environments,
 # you must push these images to a container registry and update the Kubernetes manifests.
-docker build -t cloudwalk-backend:latest ../backend
-docker build -t cloudwalk-frontend:latest ../frontend
+docker build -t ai-agents-backend:latest ../backend
+docker build -t ai-agents-frontend:latest ../frontend
 
 # Deploy PVC
 echo "📦 Deploying PVC..."

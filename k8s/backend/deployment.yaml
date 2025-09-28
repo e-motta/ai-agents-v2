@@ -44,7 +44,7 @@ spec:
               cpu: "50m"
       containers:
         - name: backend
-          image: cloudwalk-backend:latest
+          image: ai-agents-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

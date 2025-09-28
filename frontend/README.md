@@ -1,6 +1,6 @@
-# CloudWalk Chat Frontend
+# AI Agents Chat Frontend
 
-A React-based chat interface for the CloudWalk FastAPI backend, built with Vite, Tailwind CSS, and modern React patterns.
+A React-based chat interface for the AI Agents FastAPI backend, built with Vite, Tailwind CSS, and modern React patterns.
 
 ## Features
 

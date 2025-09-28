@@ -1,6 +1,6 @@
 # Kubernetes Manifests
 
-This directory contains the essential Kubernetes manifests needed to deploy the CloudWalk application.
+This directory contains the essential Kubernetes manifests needed to deploy the AI Agents application.
 
 ## Prerequisites
 
@@ -9,8 +9,8 @@ Before deploying these manifests, ensure you have:
 1. **Kubernetes Cluster** (v1.20+)
 2. **kubectl** configured to access your cluster
 3. **Docker Images** built and pushed to a registry:
-   - `cloudwalk-backend:latest`
-   - `cloudwalk-frontend:latest`
+   - `ai-agents-backend:latest`
+   - `ai-agents-frontend:latest`
 4. **Ingress Controller** (nginx-ingress recommended)
 
 ## Quick Start

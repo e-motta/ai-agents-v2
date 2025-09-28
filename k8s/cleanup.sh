@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Complete cleanup script for CloudWalk Kubernetes manifests
+# Complete cleanup script for AI Agents Kubernetes manifests
 set -e
 
-echo "🧹 Cleaning up CloudWalk Application from Kubernetes..."
+echo "🧹 Cleaning up AI Agents Application from Kubernetes..."
 
 # Check if kubectl is available
 if ! command -v kubectl &> /dev/null; then
