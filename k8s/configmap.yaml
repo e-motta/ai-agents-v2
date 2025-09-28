@@ -4,7 +4,7 @@ metadata:
   name: app-config
   namespace: default
   labels:
-    app: cloudwalk-app
+    app: ai-agents-app
     version: v1
 data:
   # Backend Configuration

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Health check script for CloudWalk Kubernetes deployments
+# Health check script for AI Agents Kubernetes deployments
 set -e
 
-echo "🏥 CloudWalk Application Health Check"
+echo "🏥 AI Agents Application Health Check"
 echo "======================================"
 
 # Check if kubectl is available

@@ -4,7 +4,7 @@ metadata:
   name: index-builder-job
   namespace: default
   labels:
-    app: cloudwalk-app
+    app: ai-agents-app
     component: index-builder
 spec:
   template:
@@ -15,7 +15,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: index-builder
-        image: cloudwalk-backend:latest
+        image: ai-agents-backend:latest
         imagePullPolicy: Never
         command: ["python", "scripts/build_index.py"]
         envFrom:
