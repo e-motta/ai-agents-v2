@@ -1,6 +1,6 @@
-# CloudWalk AI Agents System
+# AI Agents System
 
-A multi-agent AI system built with FastAPI, React, and Redis, designed to handle mathematical computations and knowledge-based queries for InfinitePay services.
+A multi-agent AI system built with FastAPI, React, and Redis, designed to handle mathematical computations and knowledge-based queries.
 
 ## 🏗️ Architecture Overview
 
@@ -128,7 +128,7 @@ metadata:
   name: openai-secret
   namespace: default
   labels:
-    app: cloudwalk-app
+    app: ai-agents-app
 type: Opaque
 data:
   # Base64 encoded API key - replace with actual API key

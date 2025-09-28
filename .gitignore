@@ -57,3 +57,5 @@ dist/
 build/
 *.lock
 secrets.yaml
+documentation
+WARP.md

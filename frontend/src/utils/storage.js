@@ -10,7 +10,7 @@ export const generateConversationId = () => {
 
 // Local storage keys
 const STORAGE_KEYS = {
-  USER_ID: "cloudwalk_user_id",
+  USER_ID: "ai_agents_user_id",
 };
 
 // Get user ID from local storage or generate a new one
