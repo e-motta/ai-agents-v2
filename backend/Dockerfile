@@ -1,5 +1,5 @@
-# Use Python 3.11 slim image for better performance and security
-FROM python:3.11-slim
+# Use Python 3.12.11 slim image for better performance and security
+FROM python:3.12.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
