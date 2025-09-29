@@ -70,14 +70,14 @@ cd ai_agents
 
 ```bash
 # Run Docker Compose with build profile (should take around 5 minutes to finish)
-docker-compose --profile build up build-index
+docker compose --profile build run --build --rm build-index
 ```
 
 ### 3. Start all services
 
-```
+```bash
 # Start all services with Docker Compose
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### 4. Verify Services

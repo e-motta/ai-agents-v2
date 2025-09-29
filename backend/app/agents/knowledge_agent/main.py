@@ -27,15 +27,20 @@ def build_index_from_scratch():
 
     if VECTOR_STORE_PATH.exists():
         logger.warning(
-            "Vector store already exists. Deleting it to rebuild.",
+            "Vector store already exists. Deleting contents to rebuild.",
             vector_store_path=str(VECTOR_STORE_PATH),
         )
         try:
-            shutil.rmtree(VECTOR_STORE_PATH)
+            # Only delete contents, not the directory itself (since it's mounted)
+            for item in VECTOR_STORE_PATH.iterdir():
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
         except OSError as e:
             if e.errno == 16:  # Device or resource busy
                 logger.warning(
-                    "Cannot delete vector store directory (resource busy). "
+                    "Cannot delete vector store contents (resource busy). "
                     "This may be due to multiple pods accessing the same PVC. "
                     "Attempting to build index in existing directory.",
                     vector_store_path=str(VECTOR_STORE_PATH),
