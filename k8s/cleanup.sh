@@ -48,9 +48,9 @@ echo "⚙️ Removing Configuration and Secrets..."
 kubectl delete -f configmap.yaml --ignore-not-found=true
 kubectl delete -f secrets.yaml --ignore-not-found=true
 
-echo "🔧 Removing Ingress NGINX Controller..."
-# This removes the core Ingress controller installed by the deploy script
-kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml --ignore-not-found=true
+# echo "🔧 Removing Ingress NGINX Controller..."
+# # This removes the core Ingress controller installed by the deploy script
+# kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml --ignore-not-found=true
 
 echo ""
 echo "✅ Cleanup completed successfully!"

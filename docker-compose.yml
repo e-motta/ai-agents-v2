@@ -1,7 +1,4 @@
-version: "3.8"
-
 services:
-  # Redis service for caching and session storage
   redis:
     image: redis:7.2-alpine
     container_name: agents-redis
@@ -20,17 +17,18 @@ services:
     networks:
       - app-network
 
-  # Build index service - runs once to build the knowledge index
   build-index:
     build:
       context: ./backend
-      dockerfile: Dockerfile.build-index
+      dockerfile: Dockerfile
+      target: build-index
     container_name: agents-build-index
     environment:
+      - PYTHONPATH=/app
+      - VECTOR_STORE_PATH=/app/vector_store
       - ENVIRONMENT=production
     volumes:
-      - ./backend:/app
-      - /app/__pycache__
+      - index-data:/app/vector_store
     networks:
       - app-network
     env_file:
@@ -38,7 +36,6 @@ services:
     profiles:
       - build
 
-  # FastAPI backend service
   backend:
     build:
       context: ./backend
@@ -48,6 +45,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - PYTHONPATH=/app
+      - VECTOR_STORE_PATH=/app/vector_store
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - ENVIRONMENT=production
@@ -55,10 +54,9 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./backend:/app
-      - /app/__pycache__
+      - index-data:/app/vector_store
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -68,7 +66,6 @@ services:
     env_file:
       - ./backend/.env
 
-  # React frontend service
   frontend:
     build:
       context: ./frontend
@@ -97,7 +94,7 @@ services:
 # Named volumes for data persistence
 volumes:
   redis_data:
-    driver: local
+  index-data:
 
 # Custom network for service communication
 networks:

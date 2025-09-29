@@ -4,8 +4,8 @@ metadata:
   name: app-config
   namespace: default
   labels:
-    app: ai-agents-app
-    version: v1
+    app.kubernetes.io/name: ai-agents
+    app.kubernetes.io/component: config
 data:
   # Backend Configuration
   REDIS_HOST: "redis-service"

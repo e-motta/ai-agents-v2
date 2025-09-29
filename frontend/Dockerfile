@@ -1,21 +1,13 @@
-# Multi-stage build for React-Vite app
-FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
+# ---- Builder Stage ----
+# Consolidate dependency installation and building into one stage
+FROM node:24.9.0-alpine3.21 AS builder
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-
-# Copy source code
+# Copy the rest of the source code
 COPY . .
 
 # Accept build argument for docker-compose
@@ -25,22 +17,22 @@ ENV DOCKER_COMPOSE=$DOCKER_COMPOSE
 # Build the application
 RUN npm run build
 
-# Production image, copy all the files and run nginx
+# ---- Production Stage ----
+# Use a lean nginx server for the final image
 FROM nginx:1.25-alpine AS runner
-WORKDIR /app
 
-# Copy built assets from builder stage
+# Copy only the built assets from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy startup script
+# Copy custom nginx config and startup script if necessary
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
 # Create a simple health check endpoint
-RUN echo '<!DOCTYPE html><html><head><title>Health Check</title></head><body><h1>OK</h1></body></html>' > /usr/share/nginx/html/health
+RUN echo "OK" > /usr/share/nginx/html/health
 
-# Expose port 80
 EXPOSE 80
 
-# Start nginx with dynamic configuration
+# Start nginx
 CMD ["/start.sh"]
