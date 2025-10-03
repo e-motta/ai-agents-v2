@@ -46,9 +46,11 @@ class RedisService:
             )
             # Test connection
             self.redis_client.ping()
-            logger.info(f"Connected to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
+            logger.info(
+                f"Connected to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}"
+            )
         except RedisError as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.exception(f"Failed to connect to Redis: {e}")
             raise
 
     def add_message_to_history(
@@ -138,7 +140,9 @@ class RedisService:
                     logger.warning(f"Failed to parse message JSON: {e}")
                     continue
 
-            logger.info(f"Retrieved {len(history)} messages for conversation {conversation_id}")
+            logger.info(
+                f"Retrieved {len(history)} messages for conversation {conversation_id}"
+            )
             return history
 
         except RedisError as e:
@@ -201,7 +205,7 @@ class RedisService:
             conversation_ids = self.redis_client.smembers(user_key)
 
             # Convert to list and sort for consistent ordering
-            result = sorted(list(conversation_ids))
+            result = sorted(conversation_ids)
 
             logger.info(f"Retrieved {len(result)} conversations for user {user_id}")
             return result

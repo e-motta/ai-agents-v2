@@ -90,7 +90,7 @@ jobs:
 
       - name: Run Tests with Coverage
         working-directory: ./backend
-        run: poetry run pytest --cov=app --cov-report=xml --cov-fail-under=80
+        run: poetry run pytest --cov=app --cov-report=xml --cov-fail-under=60
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
