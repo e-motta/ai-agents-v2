@@ -80,9 +80,9 @@ def _find_collection_links(base_url: str) -> set[str]:
         links = soup.find_all("a", href=True)
 
         for link in links:
-            href = link["href"]  # type: ignore[assignment]
+            href = str(link["href"])
             # Convert relative URLs to absolute
-            absolute_url = urljoin(base_url, href)  # type: ignore[arg-type]
+            absolute_url = urljoin(base_url, href)
 
             # Check if this is a collection link
             if "/collections/" in absolute_url:
@@ -126,9 +126,9 @@ def _find_article_links(collection_url: str) -> set[str]:
         links = soup.find_all("a", href=True)
 
         for link in links:
-            href = link["href"]  # type: ignore[assignment]
+            href = str(link["href"])
             # Convert relative URLs to absolute
-            absolute_url = urljoin(collection_url, href)  # type: ignore[arg-type]
+            absolute_url = urljoin(collection_url, href)
 
             # Check if this is an article link
             if "/articles/" in absolute_url:

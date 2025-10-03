@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import redis
+from redis import Redis
 from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
@@ -21,7 +22,8 @@ logger = get_logger(__name__)
 class RedisService:
     """Redis service for conversation history management."""
 
-    def __init__(self, settings=None):
+    def __init__(self, settings: Any = None) -> None:
+        self.redis_client: Redis
         """
         Initialize Redis connection using application settings.
 
@@ -132,7 +134,7 @@ class RedisService:
 
             # Parse JSON messages
             history = []
-            for message_json in messages:
+            for message_json in messages:  # type: ignore[union-attr]
                 try:
                     message_data = json.loads(message_json)
                     history.append(message_data)
@@ -166,7 +168,7 @@ class RedisService:
             key = f"conversation:{conversation_id}"
             result = self.redis_client.delete(key)
             logger.info(f"Cleared history for conversation {conversation_id}")
-            return result > 0
+            return result > 0  # type: ignore[operator]
         except RedisError as e:
             logger.exception(f"Failed to clear conversation history: {e}")
             return False
@@ -183,7 +185,7 @@ class RedisService:
         """
         try:
             key = f"conversation:{conversation_id}"
-            return self.redis_client.llen(key)
+            return self.redis_client.llen(key)  # type: ignore[return-value]
         except RedisError as e:
             logger.exception(f"Failed to get conversation count: {e}")
             return 0
@@ -205,7 +207,7 @@ class RedisService:
             conversation_ids = self.redis_client.smembers(user_key)
 
             # Convert to list and sort for consistent ordering
-            result = sorted(conversation_ids)
+            result = sorted(conversation_ids)  # type: ignore[arg-type]
 
             logger.info(f"Retrieved {len(result)} conversations for user {user_id}")
             return result

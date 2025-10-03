@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -17,7 +18,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ARG001
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     """Warm up expensive resources once on startup."""
     get_math_llm()
     get_router_llm()
@@ -73,6 +74,6 @@ app.include_router(chat_router, prefix="/api/v1")
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint for Kubernetes."""
     return {"status": "healthy"}

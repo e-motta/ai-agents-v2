@@ -7,6 +7,7 @@ with all required fields for the agent system.
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,8 +18,8 @@ from structlog.stdlib import LoggerFactory
 def add_timestamp(
     logger: Any,  # noqa: ARG001
     method_name: str,  # noqa: ARG001
-    event_dict: dict[str, Any],
-) -> dict[str, Any]:
+    event_dict: MutableMapping[str, Any],
+) -> MutableMapping[str, Any]:
     """Add ISO 8601 timestamp to log events."""
     event_dict["timestamp"] = datetime.now(UTC).isoformat()
     return event_dict
@@ -27,8 +28,8 @@ def add_timestamp(
 def add_agent_context(
     logger: Any,
     method_name: str,  # noqa: ARG001
-    event_dict: dict[str, Any],
-) -> dict[str, Any]:
+    event_dict: MutableMapping[str, Any],
+) -> MutableMapping[str, Any]:
     """Add agent context to log events."""
     # Extract agent name from logger name if available
     logger_name = logger.name if hasattr(logger, "name") else ""
@@ -68,7 +69,7 @@ def configure_logging() -> None:
             structlog.stdlib.add_logger_name,
             # Format as JSON
             structlog.processors.JSONRenderer(),
-        ],  # type: ignore  # noqa: PGH003
+        ],
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=LoggerFactory(),
         cache_logger_on_first_use=True,
@@ -92,7 +93,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         Configured structlog logger
     """
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 def log_agent_decision(
@@ -101,7 +102,7 @@ def log_agent_decision(
     user_id: str,
     decision: str,
     execution_time: float | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """
     Log agent decision with structured fields.
@@ -133,7 +134,7 @@ def log_agent_processing(
     user_id: str,
     processed_content: str,
     execution_time: float | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """
     Log agent processing with structured fields.
@@ -165,7 +166,7 @@ def log_system_event(
     conversation_id: str | None = None,
     user_id: str | None = None,
     execution_time: float | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """
     Log system events with structured fields.

@@ -31,4 +31,4 @@ def sanitize_user_input(text: str) -> str:
         text, tags=allowed_tags, attributes=allowed_attributes, strip=True
     )
 
-    return sanitized
+    return str(sanitized)

@@ -20,7 +20,7 @@ VECTOR_STORE_PATH = _settings.VECTOR_STORE_PATH
 COLLECTION_NAME = _settings.COLLECTION_NAME
 
 
-def build_index_from_scratch():
+def build_index_from_scratch() -> None:
     """
     Crawls, scrapes, and builds the vector store from scratch.
     """
@@ -83,7 +83,7 @@ def build_index_from_scratch():
     )
 
 
-async def build_index_background():
+async def build_index_background() -> None:
     """Build the vector index in the background if it doesn't exist."""
     try:
         # Check if the collection actually exists, not just the directory

@@ -15,7 +15,7 @@ from app.security.prompts import MATH_AGENT_SYSTEM_PROMPT
 logger = get_logger(__name__)
 
 
-def _validate_math_response(result: str, query: str, execution_time: float):
+def _validate_math_response(result: str, query: str, execution_time: float) -> None:
     if not result or result.lower() == "error":
         logger.error(
             "Math evaluation failed - no result",

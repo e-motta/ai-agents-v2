@@ -13,10 +13,15 @@ from app.models import ChatRequest, WorkflowStep
 
 def log_and_handle_agent_errors(
     logger: BoundLogger, agent_name: str, error_status_code: int = 500
-):
+) -> Callable[
+    [Callable[..., Awaitable[str]]],
+    Callable[[dict[str, Any]], Awaitable[tuple[str, WorkflowStep]]],
+]:
     """Decorator to handle timing, logging, and exceptions for agent processing."""
 
-    def decorator(func: Callable[..., Awaitable[str]]):
+    def decorator(
+        func: Callable[..., Awaitable[str]],
+    ) -> Callable[[dict[str, Any]], Awaitable[tuple[str, WorkflowStep]]]:
         @wraps(func)
         async def wrapper(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
             payload: ChatRequest = context["payload"]

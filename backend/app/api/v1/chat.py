@@ -99,7 +99,7 @@ def _save_conversation_to_redis(
     message: str,
     agent_response: str,
     agent: str,
-):
+) -> None:
     if redis_service is None:
         logger.warning(
             "Redis service unavailable, conversation not saved",
@@ -184,7 +184,7 @@ async def chat(
         "math_llm": math_llm,
         "knowledge_engine": knowledge_engine,
     }
-    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore[assignment]
+    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore[call-overload]
 
     if asyncio.iscoroutinefunction(handler):
         source_agent_response, step = await handler(context)

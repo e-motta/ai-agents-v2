@@ -80,4 +80,4 @@ def get_settings() -> Settings:
 
 
 def reset_settings_cache() -> None:
-    get_settings.cache_clear()  # type: ignore[attr-defined]
+    get_settings.cache_clear()
