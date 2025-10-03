@@ -5,13 +5,15 @@ These tests verify that the router agent correctly classifies queries
 without making external LLM calls.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from app.agents.router_agent import (
-    route_query,
-    convert_response,
-    _validate_response,
     _detect_suspicious_content,
+    _validate_response,
+    convert_response,
+    route_query,
 )
 from app.enums import ResponseEnum
 
@@ -258,7 +260,10 @@ class TestConvertResponse:
         """Test conversion of knowledge agent response."""
         # Mock LLM response
         mock_response = AsyncMock()
-        mock_response.content = "According to our documentation, the transaction fees are 2.5% per transaction."
+        mock_response.content = (
+            "According to our documentation, "
+            "the transaction fees are 2.5% per transaction."
+        )
         mock_llm.ainvoke.return_value = mock_response
 
         result = await convert_response(
@@ -267,7 +272,10 @@ class TestConvertResponse:
             agent_type="KnowledgeAgent",
             llm=mock_llm,
         )
-        assert result == "According to our documentation, the transaction fees are 2.5% per transaction."
+        assert (
+            result == "According to our documentation, "
+            "the transaction fees are 2.5% per transaction."
+        )
         mock_llm.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio

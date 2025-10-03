@@ -7,7 +7,7 @@ with all required fields for the agent system.
 
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -15,15 +15,19 @@ from structlog.stdlib import LoggerFactory
 
 
 def add_timestamp(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
+    logger: Any,  # noqa: ARG001
+    method_name: str,  # noqa: ARG001
+    event_dict: dict[str, Any],
 ) -> dict[str, Any]:
     """Add ISO 8601 timestamp to log events."""
-    event_dict["timestamp"] = datetime.now(timezone.utc).isoformat()
+    event_dict["timestamp"] = datetime.now(UTC).isoformat()
     return event_dict
 
 
 def add_agent_context(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
+    logger: Any,
+    method_name: str,  # noqa: ARG001
+    event_dict: dict[str, Any],
 ) -> dict[str, Any]:
     """Add agent context to log events."""
     # Extract agent name from logger name if available
@@ -64,7 +68,7 @@ def configure_logging() -> None:
             structlog.stdlib.add_logger_name,
             # Format as JSON
             structlog.processors.JSONRenderer(),
-        ],  # type: ignore
+        ],  # type: ignore  # noqa: PGH003
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=LoggerFactory(),
         cache_logger_on_first_use=True,

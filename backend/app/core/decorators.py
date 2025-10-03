@@ -1,12 +1,14 @@
 import time
-from typing import Callable, Awaitable, Any
+from collections.abc import Awaitable, Callable
 from functools import wraps
+from typing import Any
+
 from fastapi import HTTPException
 from structlog.stdlib import BoundLogger
 
+from app.core.error_handling import create_knowledge_error, create_math_error
 from app.core.logging import log_agent_processing
 from app.models import ChatRequest, WorkflowStep
-from app.core.error_handling import create_math_error, create_knowledge_error
 
 
 def log_and_handle_agent_errors(
@@ -36,8 +38,9 @@ def log_and_handle_agent_errors(
                 )
             except Exception as e:
                 execution_time = time.time() - start_time
-                logger.error(
-                    f"{agent_name} processing failed",
+                logger.exception(
+                    "%s processing failed",
+                    agent_name,
                     conversation_id=payload.conversation_id,
                     user_id=payload.user_id,
                     error=str(e),
@@ -46,11 +49,10 @@ def log_and_handle_agent_errors(
                 )
                 # Create appropriate error based on agent type
                 if agent_name == "MathAgent":
-                    raise create_math_error(details=str(e))
-                elif agent_name == "KnowledgeAgent":
-                    raise create_knowledge_error(details=str(e))
-                else:
-                    raise HTTPException(status_code=error_status_code, detail=str(e))
+                    raise create_math_error(details=str(e)) from e
+                if agent_name == "KnowledgeAgent":
+                    raise create_knowledge_error(details=str(e)) from e
+                raise HTTPException(status_code=error_status_code, detail=str(e)) from e
 
         return wrapper
 

@@ -6,10 +6,10 @@ across all agents, ensuring uniform configuration and easy maintenance.
 """
 
 from langchain_openai import ChatOpenAI
-from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core import Settings
+from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
 
 from app.core.settings import get_settings
 

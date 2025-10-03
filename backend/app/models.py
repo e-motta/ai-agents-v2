@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import BaseModel
 
 
@@ -26,4 +25,4 @@ class ChatResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     code: str
-    details: Optional[str] = None
+    details: str | None = None

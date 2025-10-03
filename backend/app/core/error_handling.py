@@ -5,16 +5,16 @@ This module provides utilities for creating consistent error responses
 across the application using the ErrorResponse model and ErrorMessage enum.
 """
 
-from typing import Optional
 from fastapi import HTTPException, status
-from app.models import ErrorResponse
+
 from app.enums import ErrorMessage
+from app.models import ErrorResponse
 
 
 def create_error_response(
     error_message: ErrorMessage,
     code: str,
-    details: Optional[str] = None,
+    details: str | None = None,
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
 ) -> HTTPException:
     """
@@ -34,7 +34,7 @@ def create_error_response(
     return HTTPException(status_code=status_code, detail=error_response.model_dump())
 
 
-def create_validation_error(details: Optional[str] = None) -> HTTPException:
+def create_validation_error(details: str | None = None) -> HTTPException:
     """Create a validation error response."""
     return create_error_response(
         error_message=ErrorMessage.API_VALIDATION_ERROR,
@@ -44,7 +44,7 @@ def create_validation_error(details: Optional[str] = None) -> HTTPException:
     )
 
 
-def create_math_error(details: Optional[str] = None) -> HTTPException:
+def create_math_error(details: str | None = None) -> HTTPException:
     """Create a math evaluation error response."""
     return create_error_response(
         error_message=ErrorMessage.MATH_EVALUATION_FAILED,
@@ -54,7 +54,7 @@ def create_math_error(details: Optional[str] = None) -> HTTPException:
     )
 
 
-def create_knowledge_error(details: Optional[str] = None) -> HTTPException:
+def create_knowledge_error(details: str | None = None) -> HTTPException:
     """Create a knowledge base error response."""
     return create_error_response(
         error_message=ErrorMessage.KNOWLEDGE_QUERY_FAILED,
@@ -73,7 +73,7 @@ def create_unsupported_language_error() -> HTTPException:
     )
 
 
-def create_generic_error(details: Optional[str] = None) -> HTTPException:
+def create_generic_error(details: str | None = None) -> HTTPException:
     """Create a generic error response."""
     return create_error_response(
         error_message=ErrorMessage.GENERIC_ERROR,
@@ -84,7 +84,7 @@ def create_generic_error(details: Optional[str] = None) -> HTTPException:
 
 
 def create_service_unavailable_error(
-    service_name: str, details: Optional[str] = None
+    service_name: str, details: str | None = None
 ) -> HTTPException:
     """Create a service unavailable error response."""
     return create_error_response(
@@ -95,7 +95,7 @@ def create_service_unavailable_error(
     )
 
 
-def create_redis_error(details: Optional[str] = None) -> HTTPException:
+def create_redis_error(details: str | None = None) -> HTTPException:
     """Create a Redis error response."""
     return create_error_response(
         error_message=ErrorMessage.REDIS_OPERATION_FAILED,
@@ -105,7 +105,7 @@ def create_redis_error(details: Optional[str] = None) -> HTTPException:
     )
 
 
-def create_internal_error(details: Optional[str] = None) -> HTTPException:
+def create_internal_error(details: str | None = None) -> HTTPException:
     """Create an internal server error response."""
     return create_error_response(
         error_message=ErrorMessage.API_INTERNAL_ERROR,

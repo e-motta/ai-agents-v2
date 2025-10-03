@@ -6,16 +6,15 @@ using Redis as the storage backend.
 """
 
 import json
+from datetime import UTC, datetime
 from typing import Any
-from datetime import datetime, UTC
 
 import redis
 from redis.exceptions import RedisError
 
-from app.core.settings import get_settings
 from app.core.logging import get_logger
+from app.core.settings import get_settings
 
-# Configure logging
 logger = get_logger(__name__)
 
 
@@ -47,9 +46,7 @@ class RedisService:
             )
             # Test connection
             self.redis_client.ping()
-            logger.info(
-                f"Connected to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}"
-            )
+            logger.info(f"Connected to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
         except RedisError as e:
             logger.error(f"Failed to connect to Redis: {e}")
             raise
@@ -109,10 +106,10 @@ class RedisService:
             return True
 
         except RedisError as e:
-            logger.error(f"Failed to add message to history: {e}")
+            logger.exception(f"Failed to add message to history: {e}")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error adding message to history: {e}")
+            logger.exception(f"Unexpected error adding message to history: {e}")
             return False
 
     def get_history(self, conversation_id: str) -> list[dict[str, Any]]:
@@ -141,16 +138,14 @@ class RedisService:
                     logger.warning(f"Failed to parse message JSON: {e}")
                     continue
 
-            logger.info(
-                f"Retrieved {len(history)} messages for conversation {conversation_id}"
-            )
+            logger.info(f"Retrieved {len(history)} messages for conversation {conversation_id}")
             return history
 
         except RedisError as e:
-            logger.error(f"Failed to get conversation history: {e}")
+            logger.exception(f"Failed to get conversation history: {e}")
             return []
         except Exception as e:
-            logger.error(f"Unexpected error getting conversation history: {e}")
+            logger.exception(f"Unexpected error getting conversation history: {e}")
             return []
 
     def clear_history(self, conversation_id: str) -> bool:
@@ -169,7 +164,7 @@ class RedisService:
             logger.info(f"Cleared history for conversation {conversation_id}")
             return result > 0
         except RedisError as e:
-            logger.error(f"Failed to clear conversation history: {e}")
+            logger.exception(f"Failed to clear conversation history: {e}")
             return False
 
     def get_conversation_count(self, conversation_id: str) -> int:
@@ -186,7 +181,7 @@ class RedisService:
             key = f"conversation:{conversation_id}"
             return self.redis_client.llen(key)
         except RedisError as e:
-            logger.error(f"Failed to get conversation count: {e}")
+            logger.exception(f"Failed to get conversation count: {e}")
             return 0
 
     def get_user_conversations(self, user_id: str) -> list[str]:
@@ -212,8 +207,8 @@ class RedisService:
             return result
 
         except RedisError as e:
-            logger.error(f"Failed to get user conversations: {e}")
+            logger.exception(f"Failed to get user conversations: {e}")
             return []
         except Exception as e:
-            logger.error(f"Unexpected error getting user conversations: {e}")
+            logger.exception(f"Unexpected error getting user conversations: {e}")
             return []

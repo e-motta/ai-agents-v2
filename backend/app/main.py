@@ -1,21 +1,23 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.api.v1.chat import router as chat_router
+from app.core.logging import configure_logging, get_logger
 from app.dependencies import (
     get_knowledge_engine,
     get_math_llm,
     get_router_llm,
 )
-from app.core.logging import configure_logging, get_logger
 
 configure_logging()
 logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """Warm up expensive resources once on startup."""
     get_math_llm()
     get_router_llm()
@@ -43,9 +45,10 @@ app.add_middleware(
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001
     """
-    Global exception handler to catch all unhandled errors and return a generic 500 response.
+    Global exception handler to catch all unhandled errors
+    and return a generic 500 response.
 
     Args:
         request: The FastAPI request object

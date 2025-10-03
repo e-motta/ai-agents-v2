@@ -1,34 +1,31 @@
-import time
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import Callable, Awaitable, Any
+import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
+from fastapi import APIRouter, Depends
 from langchain_openai.chat_models.base import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.dependencies import (
-    get_router_llm,
-    get_math_llm,
-    get_knowledge_engine,
-    SanitizedMessage,
-    RedisServiceDep,
-)
-from app.agents.router_agent import route_query, convert_response
-from app.agents.math_agent import solve_math
 from app.agents.knowledge_agent import query_knowledge
-from app.enums import ResponseEnum, ErrorMessage
-from app.models import ChatRequest, ChatResponse, WorkflowStep
-from app.core.logging import get_logger, log_system_event
+from app.agents.math_agent import solve_math
+from app.agents.router_agent import convert_response, route_query
 from app.core.decorators import log_and_handle_agent_errors
 from app.core.error_handling import (
-    create_validation_error,
-    create_math_error,
-    create_knowledge_error,
-    create_unsupported_language_error,
-    create_generic_error,
-    create_service_unavailable_error,
     create_redis_error,
+    create_service_unavailable_error,
+    create_validation_error,
 )
+from app.core.logging import get_logger, log_system_event
+from app.dependencies import (
+    RedisServiceDep,
+    SanitizedMessage,
+    get_knowledge_engine,
+    get_math_llm,
+    get_router_llm,
+)
+from app.enums import ErrorMessage, ResponseEnum
+from app.models import ChatRequest, ChatResponse, WorkflowStep
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -132,7 +129,7 @@ def _save_conversation_to_redis(
                 user_id=user_id,
             )
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Error saving conversation to Redis",
             conversation_id=conversation_id,
             user_id=user_id,
@@ -169,7 +166,7 @@ async def chat(
             user_id=payload.user_id,
         )
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Router agent failed",
             conversation_id=payload.conversation_id,
             user_id=payload.user_id,
@@ -187,7 +184,7 @@ async def chat(
         "math_llm": math_llm,
         "knowledge_engine": knowledge_engine,
     }
-    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore
+    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore[assignment]
 
     if asyncio.iscoroutinefunction(handler):
         source_agent_response, step = await handler(context)
@@ -207,7 +204,7 @@ async def chat(
         else:
             final_response = source_agent_response
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Response conversion failed, using original response",
             conversation_id=payload.conversation_id,
             user_id=payload.user_id,
@@ -290,14 +287,14 @@ async def get_conversation_history(
         }
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Error retrieving conversation history",
             conversation_id=conversation_id,
             error=str(e),
         )
         raise create_redis_error(
-            details=f"Failed to retrieve conversation history: {str(e)}"
-        )
+            details=f"Failed to retrieve conversation history: {e!s}"
+        ) from e
 
 
 @router.get("/chat/user/{user_id}/conversations")
@@ -346,11 +343,11 @@ async def get_user_conversations_endpoint(
         }
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Error retrieving user conversations",
             user_id=user_id,
             error=str(e),
         )
         raise create_redis_error(
-            details=f"Failed to retrieve user conversations: {str(e)}"
-        )
+            details=f"Failed to retrieve user conversations: {e!s}"
+        ) from e

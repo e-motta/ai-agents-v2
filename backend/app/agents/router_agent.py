@@ -7,12 +7,12 @@ based on the query content using an LLM classifier.
 
 import time
 
-from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
-from app.security.prompts import ROUTER_SYSTEM_PROMPT, ROUTER_CONVERSION_PROMPT
-from app.enums import ResponseEnum
 from app.core.logging import get_logger, log_agent_decision
+from app.enums import ResponseEnum
+from app.security.prompts import ROUTER_CONVERSION_PROMPT, ROUTER_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,8 @@ def _validate_response(response: str) -> str:
         response: Raw response from the LLM
 
     Returns:
-        Cleaned response ("MathAgent", "KnowledgeAgent", "UnsupportedLanguage", or "Error")
+        Cleaned response
+        ("MathAgent", "KnowledgeAgent", "UnsupportedLanguage", or "Error")
     """
     # Clean the response
     cleaned_response = response.strip().lower()
@@ -137,7 +138,8 @@ async def route_query(
         ValueError: If the query is empty or if there's an error processing the query
     """
     if not query or not query.strip():
-        raise ValueError("Query cannot be empty")
+        error_msg = "Query cannot be empty"
+        raise ValueError(error_msg)
 
     # Clean the query
     cleaned_query = query.strip()
@@ -193,7 +195,7 @@ async def route_query(
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
+        logger.exception(
             "Error routing query",
             conversation_id=conversation_id,
             user_id=user_id,
@@ -212,12 +214,14 @@ async def convert_response(
     llm: ChatOpenAI,
 ) -> str:
     """
-    Convert raw agent response into conversational format using the Router Agent's conversion system.
+    Convert raw agent response into conversational format
+    using the Router Agent's conversion system.
 
     Args:
         original_query: The user's original query
         agent_response: The raw response from the specialized agent
-        agent_type: The type of agent that generated the response (MathAgent or KnowledgeAgent)
+        agent_type: The type of agent that generated
+            the response (MathAgent or KnowledgeAgent)
         llm: ChatOpenAI LLM instance to use for conversion
 
     Returns:
@@ -244,7 +248,8 @@ async def convert_response(
 Agent Type: {agent_type}
 Agent Response: "{agent_response}"
 
-Please convert this agent response into a conversational format while preserving all factual accuracy."""
+Please convert this agent response into a conversational format
+ while preserving all factual accuracy."""
             ),
         ]
 
@@ -253,7 +258,9 @@ Please convert this agent response into a conversational format while preserving
 
         # Handle different response formats
         if isinstance(response.content, list):
-            converted_response = " ".join(str(item) for item in response.content).strip()
+            converted_response = " ".join(
+                str(item) for item in response.content
+            ).strip()
         else:
             converted_response = response.content.strip()
 
@@ -281,7 +288,7 @@ Please convert this agent response into a conversational format while preserving
 
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
+        logger.exception(
             "Response conversion error",
             agent_type=agent_type,
             error=str(e),

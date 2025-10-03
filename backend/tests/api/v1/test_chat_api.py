@@ -5,7 +5,7 @@ These tests verify the complete flow of the chat API without making
 external calls or warming up expensive resources.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 
 class TestChatAPI:
@@ -120,7 +120,10 @@ class TestChatAPI:
 
         # Mock conversion LLM response (should not be called for unsupported language)
         conversion_response = AsyncMock()
-        conversion_response.content = "Unsupported language. Please ask in English or Portuguese. / Por favor, pergunte em inglês ou português."
+        conversion_response.content = (
+            "Unsupported language. Please ask in English or Portuguese. "
+            "/ Por favor, pergunte em inglês ou português."
+        )
 
         mock_llm.ainvoke.side_effect = [router_response, conversion_response]
 
@@ -138,11 +141,13 @@ class TestChatAPI:
         assert data["router_decision"] == "UnsupportedLanguage"
         assert (
             data["response"]
-            == "Unsupported language. Please ask in English or Portuguese. / Por favor, pergunte em inglês ou português."
+            == "Unsupported language. Please ask in English or Portuguese. "
+            "/ Por favor, pergunte em inglês ou português."
         )
         assert (
             data["source_agent_response"]
-            == "Unsupported language. Please ask in English or Portuguese. / Por favor, pergunte em inglês ou português."
+            == "Unsupported language. Please ask in English or Portuguese. "
+            "/ Por favor, pergunte em inglês ou português."
         )
         assert len(data["agent_workflow"]) == 2
 
@@ -177,12 +182,12 @@ class TestChatAPI:
 
         assert data["router_decision"] == "Error"
         assert (
-            data["response"]
-            == "Sorry, I could not process your request. / Desculpe, não consegui processar a sua pergunta."
+            data["response"] == "Sorry, I could not process your request. "
+            "/ Desculpe, não consegui processar a sua pergunta."
         )
         assert (
-            data["source_agent_response"]
-            == "Sorry, I could not process your request. / Desculpe, não consegui processar a sua pergunta."
+            data["source_agent_response"] == "Sorry, I could not process your request. "
+            "/ Desculpe, não consegui processar a sua pergunta."
         )
         assert len(data["agent_workflow"]) == 2
 
@@ -212,12 +217,12 @@ class TestChatAPI:
 
         assert data["router_decision"] == "Error"
         assert (
-            data["response"]
-            == "Sorry, I could not process your request. / Desculpe, não consegui processar a sua pergunta."
+            data["response"] == "Sorry, I could not process your request. "
+            "/ Desculpe, não consegui processar a sua pergunta."
         )
         assert (
-            data["source_agent_response"]
-            == "Sorry, I could not process your request. / Desculpe, não consegui processar a sua pergunta."
+            data["source_agent_response"] == "Sorry, I could not process your request. "
+            "/ Desculpe, não consegui processar a sua pergunta."
         )
         assert len(data["agent_workflow"]) == 2
 
@@ -452,8 +457,8 @@ class TestChatAPI:
     def test_chat_redis_service_unavailable(self, test_client):
         """Test behavior when Redis service is unavailable."""
         # Override the Redis dependency to return None
-        from app.main import app
-        from app.dependencies import get_redis_service
+        from app.dependencies import get_redis_service  # noqa: PLC0415
+        from app.main import app  # noqa: PLC0415
 
         app.dependency_overrides[get_redis_service] = lambda: None
 
@@ -524,8 +529,8 @@ class TestChatAPI:
     ):
         """Test that conversations are not saved when Redis is unavailable."""
         # Override the Redis dependency to return None
-        from app.main import app
-        from app.dependencies import get_redis_service
+        from app.dependencies import get_redis_service  # noqa: PLC0415
+        from app.main import app  # noqa: PLC0415
 
         app.dependency_overrides[get_redis_service] = lambda: None
 
