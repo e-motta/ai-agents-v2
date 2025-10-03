@@ -22,7 +22,7 @@ fi
 
 # Install dependencies
 echo "📚 Installing project dependencies..."
-poetry install --with dev,test
+poetry install --with dev
 
 echo "🎉 Setup complete!"
 echo ""
