@@ -1,5 +1,7 @@
 # AI Agents System
 
+[![CI Pipeline](https://github.com/e-motta/ai_agents/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e-motta/ai_agents/actions/workflows/ci.yml)
+
 A multi-agent AI system built with FastAPI, React, and Redis, designed to handle mathematical computations and knowledge-based queries.
 
 ## 🏗️ Architecture Overview
@@ -687,6 +689,11 @@ The project includes comprehensive test suites:
 #### 1. **All Tests**
 
 ```bash
+# Using Poetry (recommended)
+poetry run python backend/run_tests.py --type all
+
+# Or activate Poetry shell first
+poetry shell
 cd backend
 python run_tests.py --type all
 ```
@@ -695,63 +702,100 @@ python run_tests.py --type all
 
 ```bash
 # Router Agent tests only
-python run_tests.py --type router
+poetry run python backend/run_tests.py --type router
 
 # Math Agent tests only
-python run_tests.py --type math
+poetry run python backend/run_tests.py --type math
 
 # Chat API tests only
-python run_tests.py --type chat
+poetry run python backend/run_tests.py --type chat
 
 # Unit tests (Router + Math)
-python run_tests.py --type unit
+poetry run python backend/run_tests.py --type unit
 ```
 
 #### 3. **With Coverage Reports**
 
 ```bash
 # Terminal coverage report
-python run_tests.py --type coverage
+poetry run python backend/run_tests.py --type coverage
 
 # HTML coverage report
-python run_tests.py --type coverage-html
+poetry run python backend/run_tests.py --type coverage-html
 
 # Comprehensive reports (HTML + XML)
-python run_tests.py --type coverage-report
+poetry run python backend/run_tests.py --type coverage-report
 ```
 
 #### 4. **Verbose Output**
 
 ```bash
 # Verbose test output
-python run_tests.py --type all --verbose
+poetry run python backend/run_tests.py --type all --verbose
 
 # Suppress warnings
-python run_tests.py --type all --no-warnings
+poetry run python backend/run_tests.py --type all --no-warnings
 ```
 
 #### 5. **Coverage Thresholds**
 
 ```bash
 # Set minimum coverage threshold
-python run_tests.py --type coverage --coverage-threshold 85
+poetry run python backend/run_tests.py --type coverage --coverage-threshold 85
 
 # Fail if coverage below threshold
-python run_tests.py --type coverage --coverage-fail-under 80
+poetry run python backend/run_tests.py --type coverage --coverage-fail-under 80
 ```
 
 ## 🔧 Development
 
+### Poetry Commands
+
+This project uses Poetry for dependency management. Here are the most common commands:
+
+```bash
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Install all dependencies (production, dev)
+poetry install --with dev
+
+# Install only production dependencies
+poetry install --only=main
+
+# Add a new dependency
+poetry add package-name
+
+# Add a development dependency
+poetry add --group dev package-name
+
+# Update dependencies
+poetry update
+
+# Show dependency tree
+poetry show --tree
+
+# Activate virtual environment
+poetry shell
+
+# Run commands in virtual environment without activating shell
+poetry run command
+
+# Export requirements.txt (if needed for legacy systems)
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+```
+
 ### Backend Development
 
 ```bash
-cd backend
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
 # Install dependencies
-pip install -r requirements.txt
+poetry install --with dev
 
 # Run development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend Development

@@ -12,8 +12,14 @@ class ErrorMessage(StrEnum):
     """Standardized error messages for the application."""
 
     # General errors
-    GENERIC_ERROR = "Sorry, I could not process your request. / Desculpe, não consegui processar a sua pergunta."
-    UNSUPPORTED_LANGUAGE = "Unsupported language. Please ask in English or Portuguese. / Por favor, pergunte em inglês ou português."
+    GENERIC_ERROR = (
+        "Sorry, I could not process your request. "
+        "/ Desculpe, não consegui processar a sua pergunta."
+    )
+    UNSUPPORTED_LANGUAGE = (
+        "Unsupported language. Please ask in English or Portuguese. "
+        "/ Por favor, pergunte em inglês ou português."
+    )
 
     # Math Agent errors
     MATH_EVALUATION_FAILED = "I couldn't solve that mathematical expression."

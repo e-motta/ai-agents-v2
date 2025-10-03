@@ -36,6 +36,14 @@ backend/venv/
 backend/vector_store/
 
 # ========================================
+# Poetry
+# ========================================
+# Note: poetry.lock should be committed to version control
+.venv/
+dist/
+build/
+
+# ========================================
 # Node/React (frontend/)
 # ========================================
 frontend/node_modules/
@@ -55,7 +63,6 @@ frontend/.env.production.local
 node_modules/
 dist/
 build/
-*.lock
 secrets.yaml
 documentation
 WARP.md

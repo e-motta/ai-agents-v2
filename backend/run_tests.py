@@ -6,19 +6,19 @@ This script provides convenient commands to run different test suites,
 generate test reports, and coverage analysis.
 """
 
+import argparse
 import subprocess
 import sys
-import argparse
 
 
 def run_command(cmd: list[str], description: str) -> bool:
     """Run a command and return success status."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running: {description}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=False)
+        subprocess.run(cmd, check=True, capture_output=False)
         print(f"\n✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -81,8 +81,8 @@ def main():
     # Test selection
     test_commands = {
         "all": {
-            "cmd": base_cmd
-            + [
+            "cmd": [
+                *base_cmd,
                 "tests/agents/test_router_agent.py",
                 "tests/agents/test_math_agent.py",
                 "tests/api/v1/test_chat_api.py",
@@ -90,52 +90,56 @@ def main():
             "description": "All Tests (Router + Math + Chat API)",
         },
         "unit": {
-            "cmd": base_cmd
-            + ["tests/agents/test_router_agent.py", "tests/agents/test_math_agent.py"],
+            "cmd": [
+                *base_cmd,
+                "tests/agents/test_router_agent.py",
+                "tests/agents/test_math_agent.py",
+            ],
             "description": "Unit Tests (Router + Math Agents)",
         },
         "router": {
-            "cmd": base_cmd + ["tests/agents/test_router_agent.py"],
+            "cmd": [*base_cmd, "tests/agents/test_router_agent.py"],
             "description": "Router Agent Unit Tests",
         },
         "math": {
-            "cmd": base_cmd + ["tests/agents/test_math_agent.py"],
+            "cmd": [*base_cmd, "tests/agents/test_math_agent.py"],
             "description": "Math Agent Unit Tests",
         },
         "chat": {
-            "cmd": base_cmd + ["tests/api/v1/test_chat_api.py"],
+            "cmd": [*base_cmd, "tests/api/v1/test_chat_api.py"],
             "description": "Chat API E2E Tests",
         },
         "coverage": {
-            "cmd": base_cmd
-            + [
+            "cmd": [
+                *base_cmd,
                 "tests/agents/test_router_agent.py",
                 "tests/agents/test_math_agent.py",
                 "tests/api/v1/test_chat_api.py",
-            ]
-            + coverage_args,
+                *coverage_args,
+            ],
             "description": "Tests with Terminal Coverage Report",
         },
         "coverage-html": {
-            "cmd": base_cmd
-            + [
+            "cmd": [
+                *base_cmd,
                 "tests/agents/test_router_agent.py",
                 "tests/agents/test_math_agent.py",
                 "tests/api/v1/test_chat_api.py",
-            ]
-            + coverage_args
-            + ["--cov-report=html"],
+                *coverage_args,
+                "--cov-report=html",
+            ],
             "description": "Tests with HTML Coverage Report",
         },
         "coverage-report": {
-            "cmd": base_cmd
-            + [
+            "cmd": [
+                *base_cmd,
                 "tests/agents/test_router_agent.py",
                 "tests/agents/test_math_agent.py",
                 "tests/api/v1/test_chat_api.py",
-            ]
-            + coverage_args
-            + ["--cov-report=html", "--cov-report=xml"],
+                *coverage_args,
+                "--cov-report=html",
+                "--cov-report=xml",
+            ],
             "description": "Tests with Comprehensive Coverage Reports (HTML + XML)",
         },
     }
@@ -145,26 +149,26 @@ def main():
     success = run_command(test_config["cmd"], test_config["description"])
 
     if success:
-        print(f"\n🎉 All tests passed successfully!")
+        print("\n🎉 All tests passed successfully!")
 
         # Show coverage report information
         if "coverage" in args.type:
-            print(f"\n📊 Coverage Reports Generated:")
+            print("\n📊 Coverage Reports Generated:")
             if args.type == "coverage":
-                print(f"   • Terminal report displayed above")
+                print("   • Terminal report displayed above")
             elif args.type == "coverage-html":
-                print(f"   • Terminal report displayed above")
-                print(f"   • HTML report: htmlcov/index.html")
+                print("   • Terminal report displayed above")
+                print("   • HTML report: htmlcov/index.html")
             elif args.type == "coverage-report":
-                print(f"   • Terminal report displayed above")
-                print(f"   • HTML report: htmlcov/index.html")
-                print(f"   • XML report: coverage.xml")
+                print("   • Terminal report displayed above")
+                print("   • HTML report: htmlcov/index.html")
+                print("   • XML report: coverage.xml")
 
             print(f"\n💡 Coverage Threshold: {args.coverage_threshold}%")
             if args.coverage_fail_under:
                 print(f"💡 Fail Under Threshold: {args.coverage_fail_under}%")
     else:
-        print(f"\n💥 Some tests failed. Please check the output above.")
+        print("\n💥 Some tests failed. Please check the output above.")
         sys.exit(1)
 
 

@@ -1,10 +1,12 @@
-import sys
-import os
 import logging
+import os
+import sys
+from pathlib import Path
 
 # Add the project root ('backend/') to the Python path
 # This allows the script to import modules from the 'app' package
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -26,6 +28,6 @@ if __name__ == "__main__":
         build_index_from_scratch()
         logger.info("Index build process completed successfully.")
     except Exception as e:
-        logger.error(f"Index build process failed: {e}", exc_info=True)
+        logger.exception(f"Index build process failed: {e}")
         logger.info("Index will be built at runtime when the application starts.")
         sys.exit(0)

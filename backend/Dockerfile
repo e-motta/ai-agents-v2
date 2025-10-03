@@ -4,38 +4,55 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    VENV_PATH=/opt/venv
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/opt/poetry_cache
 
-RUN python -m venv $VENV_PATH
-ENV PATH="$VENV_PATH/bin:$PATH"
+# Install Poetry
+RUN pip install poetry==1.8.3
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy Poetry configuration files
+COPY pyproject.toml poetry.lock* ./
+
+# Configure Poetry and install dependencies
+RUN poetry config virtualenvs.create true \
+    && poetry config virtualenvs.in-project true \
+    && poetry install --only=main --no-root
+
+# Copy application code
+COPY . .
+
+# Install the application
+RUN poetry install --only=main
 
 RUN adduser --disabled-password --gecos '' appuser
-COPY . .
 RUN mkdir -p /app/vector_store && chown -R appuser:appuser /app
 
 FROM builder AS build-index
 
 USER appuser
 
-CMD ["python", "scripts/build_index.py"]
-
+CMD ["poetry", "run", "python", "scripts/build_index.py"]
 
 FROM python:3.12.11-slim AS final
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    VENV_PATH=/opt/venv
+    VENV_PATH=/app/.venv
 ENV PATH="$VENV_PATH/bin:$PATH"
 
 RUN adduser --disabled-password --gecos '' appuser
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# Copy the virtual environment from builder
 COPY --from=builder $VENV_PATH $VENV_PATH
 
 WORKDIR /app

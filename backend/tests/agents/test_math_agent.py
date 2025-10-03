@@ -5,8 +5,10 @@ These tests verify that the math agent correctly evaluates mathematical
 expressions without making external LLM calls.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from app.agents.math_agent import solve_math
 
 
@@ -177,7 +179,9 @@ class TestSolveMath:
         mock_response.content = ""
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(ValueError, match="I couldn't solve that mathematical expression"):
+        with pytest.raises(
+            ValueError, match="I couldn't solve that mathematical expression"
+        ):
             await solve_math("2 + 2", mock_llm)
 
     @pytest.mark.asyncio
@@ -188,7 +192,9 @@ class TestSolveMath:
         mock_response.content = "Error"
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(ValueError, match="I couldn't solve that mathematical expression"):
+        with pytest.raises(
+            ValueError, match="I couldn't solve that mathematical expression"
+        ):
             await solve_math("invalid expression", mock_llm)
 
     @pytest.mark.asyncio
@@ -199,9 +205,7 @@ class TestSolveMath:
         mock_response.content = "This is not a number"
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(
-            ValueError, match="The result is not a valid number"
-        ):
+        with pytest.raises(ValueError, match="The result is not a valid number"):
             await solve_math("2 + 2", mock_llm)
 
     @pytest.mark.asyncio

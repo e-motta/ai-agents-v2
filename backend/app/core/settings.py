@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr  # noqa: TC002
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -80,4 +80,4 @@ def get_settings() -> Settings:
 
 
 def reset_settings_cache() -> None:
-    get_settings.cache_clear()  # type: ignore[attr-defined]
+    get_settings.cache_clear()

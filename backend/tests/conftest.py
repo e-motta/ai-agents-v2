@@ -5,19 +5,20 @@ This module provides test fixtures and configuration to ensure tests run
 without making external calls or warming up expensive resources.
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 from fastapi.testclient import TestClient
 from langchain_openai import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.main import app
 from app.dependencies import (
-    get_math_llm,
-    get_router_llm,
     get_knowledge_engine,
+    get_math_llm,
     get_redis_service,
+    get_router_llm,
 )
+from app.main import app
 
 
 @pytest.fixture

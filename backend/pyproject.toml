@@ -1,0 +1,115 @@
+[tool.poetry]
+name = "ai-agents"
+version = "0.1.0"
+description = "A multi-agent AI system built with FastAPI, React, and Redis"
+authors = ["Eduardo Motta <eduardo@example.com>"]
+readme = "../README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "*"
+uvicorn = { extras = ["standard"], version = "*" }
+langchain = "*"
+langchain-openai = "*"
+langchain-community = "*"
+langgraph = "*"
+llama-index = "*"
+llama-index-llms-openai = "*"
+llama-index-embeddings-openai = "*"
+llama-index-vector-stores-chroma = "*"
+chromadb = "*"
+openai = "*"
+pydantic = "*"
+pydantic-settings = "*"
+structlog = "*"
+redis = "*"
+bleach = "*"
+httpx = "*"
+requests = "*"
+beautifulsoup4 = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-mock = "*"
+pytest-cov = "*"
+ruff = "*"
+mypy = "*"
+pre-commit = "*"
+types-requests = "^2.32.4.20250913"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "A", "AIR", "ARG", "B", "C4", "COM", "DJ", "DTZ", "E", "EM", "ERA", "EXE", "F", "FA",
+    "FLY", "FURB", "G", "I", "ICN", "INP", "INT", "ISC", "NPY", "PD", "PERF", "PGH", "PIE",
+    "PL", "PT", "PTH", "PYI", "Q", "RET", "RSE", "RUF", "SIM", "SLF", "SLOT", "T10", "T20",
+    "TCH", "TID", "TRY", "UP", "W"
+]
+ignore = [
+    "B008", "B006", "PLR0913", "PLR0912", "PLR0915", "COM812",
+    "TRY300", "RET504", "T201", "RUF001", "G004", "TRY401", "TRY003", "EM101"  # todo: remove
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = [ "PLR2004", "S101", "SLF001", "ARG", "FBT" ]
+"app/security/prompts.py" = ["RUF001", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
+warn_unreachable = true
+strict_equality = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "langchain.*", "langchain_openai.*", "langchain_community.*",
+    "langgraph.*", "llama_index.*", "chromadb.*", "redis.*",
+    "structlog.*", "bleach.*"
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = [ "-ra", "--strict-markers", "--strict-config", "--disable-warnings" ]
+testpaths = [ "tests" ]
+python_files = [ "test_*.py", "*_test.py" ]
+python_classes = [ "Test*" ]
+python_functions = [ "test_*" ]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [ "*/tests/*", "*/test_*", "*/__pycache__/*", "*/migrations/*" ]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover", "def __repr__", "if self.debug:", "if settings.DEBUG",
+    "raise AssertionError", "raise NotImplementedError", "if 0:",
+    "if __name__ == .__main__.:", "class .*\\bProtocol\\):", "@(abc\\.)?abstractmethod"
+]

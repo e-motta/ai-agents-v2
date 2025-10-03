@@ -1,12 +1,13 @@
 import time
 from typing import Any
 from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
 from llama_index.core import Document
 
-from app.core.settings import get_settings
 from app.core.logging import get_logger
+from app.core.settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -50,9 +51,8 @@ def _scrape_page_content(url: str) -> dict[str, Any]:
         )
 
         return {"content": cleaned_text, "url": url}
-
     except Exception as e:
-        logger.error("Error scraping URL", url=url, error=str(e))
+        logger.exception("Error scraping URL", url=url, error=str(e))
         raise
 
 
@@ -80,9 +80,9 @@ def _find_collection_links(base_url: str) -> set[str]:
         links = soup.find_all("a", href=True)
 
         for link in links:
-            href = link["href"]  # type: ignore
+            href = str(link["href"])
             # Convert relative URLs to absolute
-            absolute_url = urljoin(base_url, href)  # type: ignore
+            absolute_url = urljoin(base_url, href)
 
             # Check if this is a collection link
             if "/collections/" in absolute_url:
@@ -95,9 +95,10 @@ def _find_collection_links(base_url: str) -> set[str]:
             links_found=len(collection_links),
         )
         return collection_links
-
     except Exception as e:
-        logger.error("Error finding collection links", base_url=base_url, error=str(e))
+        logger.exception(
+            "Error finding collection links", base_url=base_url, error=str(e)
+        )
         return set()
 
 
@@ -125,9 +126,9 @@ def _find_article_links(collection_url: str) -> set[str]:
         links = soup.find_all("a", href=True)
 
         for link in links:
-            href = link["href"]  # type: ignore
+            href = str(link["href"])
             # Convert relative URLs to absolute
-            absolute_url = urljoin(collection_url, href)  # type: ignore
+            absolute_url = urljoin(collection_url, href)
 
             # Check if this is an article link
             if "/articles/" in absolute_url:
@@ -140,9 +141,8 @@ def _find_article_links(collection_url: str) -> set[str]:
             links_found=len(article_links),
         )
         return article_links
-
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Error finding article links", collection_url=collection_url, error=str(e)
         )
         return set()
@@ -208,7 +208,9 @@ def crawl_help_center() -> list[Document]:
                     logger.warning("No content found", url=article_url)
 
             except Exception as e:
-                logger.error("Error processing article", url=article_url, error=str(e))
+                logger.exception(
+                    "Error processing article", url=article_url, error=str(e)
+                )
                 continue
 
         execution_time = time.time() - start_time
@@ -218,7 +220,6 @@ def crawl_help_center() -> list[Document]:
             execution_time=execution_time,
         )
         return documents
-
     except Exception as e:
-        logger.error("Error during crawling", error=str(e))
+        logger.exception("Error during crawling", error=str(e))
         raise

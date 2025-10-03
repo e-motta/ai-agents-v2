@@ -1,17 +1,18 @@
+import errno
 import shutil
 import time
 
-from llama_index.core import VectorStoreIndex, StorageContext
+import chromadb
+from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 from llama_index.vector_stores.chroma import ChromaVectorStore
-import chromadb
 
-from app.security.prompts import KNOWLEDGE_AGENT_SYSTEM_PROMPT
-from app.core.settings import get_settings
-from app.core.llm import setup_knowledge_agent_settings
 from app.agents.knowledge_agent.scraping import crawl_help_center
+from app.core.llm import setup_knowledge_agent_settings
 from app.core.logging import get_logger
+from app.core.settings import get_settings
 from app.enums import ErrorMessage
+from app.security.prompts import KNOWLEDGE_AGENT_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
 _settings = get_settings()
@@ -19,7 +20,7 @@ VECTOR_STORE_PATH = _settings.VECTOR_STORE_PATH
 COLLECTION_NAME = _settings.COLLECTION_NAME
 
 
-def build_index_from_scratch():
+def build_index_from_scratch() -> None:
     """
     Crawls, scrapes, and builds the vector store from scratch.
     """
@@ -38,7 +39,7 @@ def build_index_from_scratch():
                 else:
                     item.unlink()
         except OSError as e:
-            if e.errno == 16:  # Device or resource busy
+            if e.errno == errno.EBUSY:  # Device or resource busy
                 logger.warning(
                     "Cannot delete vector store contents (resource busy). "
                     "This may be due to multiple pods accessing the same PVC. "
@@ -59,8 +60,9 @@ def build_index_from_scratch():
 
     documents = crawl_help_center()
     if not documents:
-        logger.error("No documents were created during crawling")
-        raise ValueError("No documents were created during crawling.")
+        error_msg = "No documents were created during crawling."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     chroma_client = chromadb.PersistentClient(path=str(VECTOR_STORE_PATH / "chroma_db"))
     chroma_collection = chroma_client.create_collection(COLLECTION_NAME)
@@ -81,7 +83,7 @@ def build_index_from_scratch():
     )
 
 
-async def build_index_background():
+async def build_index_background() -> None:
     """Build the vector index in the background if it doesn't exist."""
     try:
         # Check if the collection actually exists, not just the directory
@@ -92,7 +94,8 @@ async def build_index_background():
                 )
                 chroma_client.get_collection(_settings.COLLECTION_NAME)
                 logger.info(
-                    "Vector store and collection already exist, skipping background build"
+                    "Vector store and collection already exist, "
+                    "skipping background build"
                 )
                 return
             except Exception:
@@ -102,12 +105,14 @@ async def build_index_background():
         logger.info(
             "Vector store or collection not found, starting background index build..."
         )
-        from app.agents.knowledge_agent.main import build_index_from_scratch
+        from app.agents.knowledge_agent.main import (  # noqa: PLC0415
+            build_index_from_scratch,
+        )
 
         build_index_from_scratch()
         logger.info("Background index build completed successfully")
     except Exception as e:
-        logger.warning(f"Background index build failed: {e}")
+        logger.warning("Background index build failed: %s", e)
         logger.info("Index will be built when first knowledge query is made")
 
 
@@ -126,7 +131,8 @@ def get_query_engine() -> BaseQueryEngine | None:
 
     if not VECTOR_STORE_PATH.exists():
         logger.warning(
-            "Vector store not found. Knowledge agent is disabled until the index is built.",
+            "Vector store not found. "
+            "Knowledge agent is disabled until the index is built.",
             vector_store_path=str(VECTOR_STORE_PATH),
         )
         return None
@@ -143,7 +149,8 @@ def get_query_engine() -> BaseQueryEngine | None:
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     except Exception as e:
         logger.warning(
-            "Failed to load vector store collection. Knowledge agent will be disabled until the index is built.",
+            "Failed to load vector store collection. "
+            "Knowledge agent will be disabled until the index is built.",
             collection_name=COLLECTION_NAME,
             error=str(e),
             vector_store_path=str(VECTOR_STORE_PATH),
@@ -182,7 +189,8 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
     start_time = time.time()
 
     if not query:
-        raise ValueError("Query cannot be empty.")
+        error_msg = "Query cannot be empty."
+        raise ValueError(error_msg)
 
     logger.info("Starting knowledge base query", query=query, query_preview=query[:100])
 
@@ -220,15 +228,14 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
             execution_time=execution_time,
             sources=sources,
         )
-
         return answer
-
     except Exception as e:
         execution_time = time.time() - start_time
-        logger.error(
+        logger.exception(
             "Error querying knowledge base",
             query=query,
             error=str(e),
             execution_time=execution_time,
         )
-        raise ValueError(f"{ErrorMessage.KNOWLEDGE_QUERY_FAILED}: {str(e)}")
+        error_msg = f"{ErrorMessage.KNOWLEDGE_QUERY_FAILED}: {e!s}"
+        raise ValueError(error_msg) from e
