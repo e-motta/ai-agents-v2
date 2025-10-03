@@ -3,9 +3,14 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci.yml"
+      - "pyproject.toml"
+      - "poetry.lock"
 
 jobs:
-  quality-checks:
+  backend-quality-checks:
     name: Backend Quality Checks
     runs-on: ubuntu-latest
 
@@ -28,21 +33,23 @@ jobs:
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
         with:
-          path: .venv
+          path: backend/.venv
           key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
 
       - name: Install dependencies
+        working-directory: ./backend
         run: poetry install --with dev --no-interaction
 
       - name: Run Ruff and Mypy
+        working-directory: ./backend
         run: |
-          poetry run ruff check backend/ --output-format=github
-          poetry run ruff format --check backend/
-          poetry run mypy backend/app/ --ignore-missing-imports
+          poetry run ruff check . --output-format=github
+          poetry run ruff format --check .
+          poetry run mypy app/ --ignore-missing-imports
 
-  run-tests:
+  backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
 
@@ -65,12 +72,13 @@ jobs:
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
         with:
-          path: .venv
+          path: backend/.venv
           key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
 
       - name: Install dependencies
+        working-directory: ./backend
         run: poetry install --with dev --no-interaction
 
       - name: Set up test environment variables
