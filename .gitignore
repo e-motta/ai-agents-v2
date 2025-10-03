@@ -63,7 +63,6 @@ frontend/.env.production.local
 node_modules/
 dist/
 build/
-*.lock
 secrets.yaml
 documentation
 WARP.md
