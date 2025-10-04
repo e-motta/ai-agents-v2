@@ -3,11 +3,6 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/workflows/ci.yml"
-      - "pyproject.toml"
-      - "poetry.lock"
 
 jobs:
   backend-quality-checks:
@@ -18,12 +13,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Detect backend changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+
       - name: Set up Python 3.12
+        if: steps.changes.outputs.backend == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
 
       - name: Install Poetry
+        if: steps.changes.outputs.backend == 'true'
         uses: snok/install-poetry@v1
         with:
           version: latest
@@ -31,6 +37,7 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry dependencies
+        if: steps.changes.outputs.backend == 'true'
         uses: actions/cache@v4
         with:
           path: backend/.venv
@@ -39,10 +46,12 @@ jobs:
             ${{ runner.os }}-poetry-
 
       - name: Install dependencies
+        if: steps.changes.outputs.backend == 'true'
         working-directory: ./backend
         run: poetry install --with dev --no-interaction
 
       - name: Run Ruff and Mypy
+        if: steps.changes.outputs.backend == 'true'
         working-directory: ./backend
         run: |
           poetry run ruff check . --output-format=github
@@ -57,12 +66,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Detect backend changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+
       - name: Set up Python 3.12
+        if: steps.changes.outputs.backend == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
 
       - name: Install Poetry
+        if: steps.changes.outputs.backend == 'true'
         uses: snok/install-poetry@v1
         with:
           version: latest
@@ -70,6 +90,7 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry dependencies
+        if: steps.changes.outputs.backend == 'true'
         uses: actions/cache@v4
         with:
           path: backend/.venv
@@ -78,10 +99,12 @@ jobs:
             ${{ runner.os }}-poetry-
 
       - name: Install dependencies
+        if: steps.changes.outputs.backend == 'true'
         working-directory: ./backend
         run: poetry install --with dev --no-interaction
 
       - name: Set up test environment variables
+        if: steps.changes.outputs.backend == 'true'
         run: |
           echo "OPENAI_API_KEY=dummy_key_for_testing" >> $GITHUB_ENV
           echo "REDIS_HOST=localhost" >> $GITHUB_ENV
@@ -89,5 +112,6 @@ jobs:
           echo "ENVIRONMENT=test" >> $GITHUB_ENV
 
       - name: Run Tests with Coverage
+        if: steps.changes.outputs.backend == 'true'
         working-directory: ./backend
         run: poetry run pytest --cov=app --cov-report=xml --cov-fail-under=60
