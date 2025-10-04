@@ -77,7 +77,3 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-
-
-def reset_settings_cache() -> None:
-    get_settings.cache_clear()

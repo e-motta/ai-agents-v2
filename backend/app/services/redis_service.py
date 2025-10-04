@@ -154,42 +154,6 @@ class RedisService:
             logger.exception(f"Unexpected error getting conversation history: {e}")
             return []
 
-    def clear_history(self, conversation_id: str) -> bool:
-        """
-        Clear conversation history.
-
-        Args:
-            conversation_id: Unique identifier for the conversation
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            key = f"conversation:{conversation_id}"
-            result = self.redis_client.delete(key)
-            logger.info(f"Cleared history for conversation {conversation_id}")
-            return result > 0  # type: ignore[operator]
-        except RedisError as e:
-            logger.exception(f"Failed to clear conversation history: {e}")
-            return False
-
-    def get_conversation_count(self, conversation_id: str) -> int:
-        """
-        Get the number of messages in a conversation.
-
-        Args:
-            conversation_id: Unique identifier for the conversation
-
-        Returns:
-            int: Number of messages in the conversation
-        """
-        try:
-            key = f"conversation:{conversation_id}"
-            return self.redis_client.llen(key)  # type: ignore[return-value]
-        except RedisError as e:
-            logger.exception(f"Failed to get conversation count: {e}")
-            return 0
-
     def get_user_conversations(self, user_id: str) -> list[str]:
         """
         Get all conversation IDs for a specific user.

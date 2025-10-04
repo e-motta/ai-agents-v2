@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { chatApi, ApiError } from "./services/api";
+import { chatApi } from "./services/api";
 import {
   getUserId,
   clearUserId,
