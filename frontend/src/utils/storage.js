@@ -27,8 +27,3 @@ export const getUserId = () => {
 export const clearUserId = () => {
   localStorage.removeItem(STORAGE_KEYS.USER_ID);
 };
-
-// Check if user ID exists in local storage
-export const hasUserId = () => {
-  return localStorage.getItem(STORAGE_KEYS.USER_ID) !== null;
-};

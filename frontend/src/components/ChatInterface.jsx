@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { chatApi, ApiError } from "../services/api";
+import { chatApi } from "../services/api";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import ErrorNotification from "./ErrorNotification";

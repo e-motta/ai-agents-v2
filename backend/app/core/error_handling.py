@@ -64,25 +64,6 @@ def create_knowledge_error(details: str | None = None) -> HTTPException:
     )
 
 
-def create_unsupported_language_error() -> HTTPException:
-    """Create an unsupported language error response."""
-    return create_error_response(
-        error_message=ErrorMessage.UNSUPPORTED_LANGUAGE,
-        code="UNSUPPORTED_LANGUAGE",
-        status_code=status.HTTP_400_BAD_REQUEST,
-    )
-
-
-def create_generic_error(details: str | None = None) -> HTTPException:
-    """Create a generic error response."""
-    return create_error_response(
-        error_message=ErrorMessage.GENERIC_ERROR,
-        code="GENERIC_ERROR",
-        details=details,
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    )
-
-
 def create_service_unavailable_error(
     service_name: str, details: str | None = None
 ) -> HTTPException:
@@ -102,14 +83,4 @@ def create_redis_error(details: str | None = None) -> HTTPException:
         code="REDIS_ERROR",
         details=details,
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-    )
-
-
-def create_internal_error(details: str | None = None) -> HTTPException:
-    """Create an internal server error response."""
-    return create_error_response(
-        error_message=ErrorMessage.API_INTERNAL_ERROR,
-        code="INTERNAL_ERROR",
-        details=details,
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
