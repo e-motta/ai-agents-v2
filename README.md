@@ -1,6 +1,6 @@
 # AI Agents System
 
-[![CI Pipeline](https://github.com/e-motta/ai_agents/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e-motta/ai_agents/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml)
 
 A multi-agent AI system built with FastAPI, React, and Redis, designed to handle mathematical computations and knowledge-based queries.
 
@@ -64,8 +64,8 @@ ENVIRONMENT=production
 
 ```bash
 # Clone the repository
-git clone https://github.com/e-motta/ai_agents.git
-cd ai_agents
+git clone https://github.com/e-motta/ai-agents-v2.git
+cd ai-agents-v2
 ```
 
 ### 2. Build the knowledge base’s vector index
@@ -823,7 +823,7 @@ redis-cli -h localhost -p 6379
 ## 📁 Project Structure
 
 ```
-ai_agents/
+ai-agents-v2/
 ├── backend/                    # FastAPI backend
 │   ├── app/
 │   │   ├── agents/           # AI agents (Router, Math, Knowledge)
