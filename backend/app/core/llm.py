@@ -13,6 +13,8 @@ from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
 
 from app.core.settings import get_settings
 
+settings = get_settings()
+
 
 def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> ChatOpenAI:
     """
@@ -26,7 +28,6 @@ def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> Cha
         ChatOpenAI instance configured for the agent
     """
     settings = get_settings()
-    # Validate presence of API key but do not pass it explicitly
     settings.ensure_openai_api_key()
 
     model_name = model or settings.LLM_MODEL
@@ -35,6 +36,7 @@ def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> Cha
 
 def setup_llamaindex_settings(
     llm_model: str | None = None,
+    llm_temperature: int | None = None,
     embedding_model: str | None = None,
     chunk_size: int | None = None,
     chunk_overlap: int | None = None,
@@ -49,12 +51,11 @@ def setup_llamaindex_settings(
         chunk_overlap: Overlap between chunks (defaults from settings)
     """
     settings = get_settings()
-    # Validate presence of API key but do not pass it explicitly
     settings.ensure_openai_api_key()
 
-    # Configure LlamaIndex settings
     Settings.llm = LlamaIndexOpenAI(
-        model=llm_model or settings.LLM_MODEL, temperature=0
+        model=llm_model or settings.LLM_MODEL,
+        temperature=llm_temperature or 0,
     )
     Settings.embed_model = OpenAIEmbedding(
         model=embedding_model or settings.EMBEDDING_MODEL
@@ -70,19 +71,14 @@ def setup_llamaindex_settings(
 # Convenience functions for common configurations
 def get_math_agent_llm() -> ChatOpenAI:
     """Get ChatOpenAI LLM configured for math agent."""
-    return get_chat_openai_llm(model="gpt-3.5-turbo", temperature=0)
+    return get_chat_openai_llm(model=settings.MATH_LLM_MODEL, temperature=0)
 
 
 def get_router_agent_llm() -> ChatOpenAI:
     """Get ChatOpenAI LLM configured for router agent."""
-    return get_chat_openai_llm(model="gpt-3.5-turbo", temperature=0)
+    return get_chat_openai_llm(model=settings.ROUTER_LLM_MODEL, temperature=0)
 
 
 def setup_knowledge_agent_settings() -> None:
     """Setup LlamaIndex settings for knowledge agent."""
-    setup_llamaindex_settings(
-        llm_model="gpt-3.5-turbo",
-        embedding_model="text-embedding-3-small",
-        chunk_size=1024,
-        chunk_overlap=20,
-    )
+    setup_llamaindex_settings(llm_model=settings.KNOWLEDGE_LLM_MODEL, llm_temperature=0)
