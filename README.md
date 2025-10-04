@@ -1,6 +1,6 @@
 # AI Agents System
 
-[![CI Pipeline](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/e-motta/ai-agents-v2/actions/workflows/ci.yml)
 
 A multi-agent AI system built with FastAPI, React, and Redis, designed to handle mathematical computations and knowledge-based queries.
 
