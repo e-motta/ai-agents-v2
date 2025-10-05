@@ -68,10 +68,26 @@ class TestConvenienceFunctions:
     """Test the convenience functions for agent LLMs."""
 
     @patch("app.core.llm.get_settings")
+    def test_get_math_agent_llm_uses_default_model(self, mock_get_settings):
+        """Test that get_math_agent_llm uses default model from settings."""
+        mock_settings = Mock()
+        mock_settings.MATH_LLM_MODEL = None
+        mock_settings.LLM_MODEL = "gpt-3.5"
+        mock_settings.ensure_openai_api_key.return_value = "test-key"
+        mock_get_settings.return_value = mock_settings
+
+        llm = get_math_agent_llm()
+
+        assert isinstance(llm, ChatOpenAI)
+        assert llm.model_name == "gpt-3.5"
+        assert llm.temperature == 0
+
+    @patch("app.core.llm.get_settings")
     def test_get_math_agent_llm_uses_configured_model(self, mock_get_settings):
         """Test that get_math_agent_llm uses configured model from settings."""
         mock_settings = Mock()
-        mock_settings.LLM_MODEL = "gpt-4"
+        mock_settings.MATH_LLM_MODEL = "gpt-4"
+        mock_settings.LLM_MODEL = "gpt-3.5"
         mock_settings.ensure_openai_api_key.return_value = "test-key"
         mock_get_settings.return_value = mock_settings
 
@@ -82,17 +98,33 @@ class TestConvenienceFunctions:
         assert llm.temperature == 0
 
     @patch("app.core.llm.get_settings")
-    def test_get_router_agent_llm_uses_configured_model(self, mock_get_settings):
-        """Test that get_router_agent_llm uses configured model from settings."""
+    def test_get_router_agent_llm_uses_default_model(self, mock_get_settings):
+        """Test that get_router_agent_llm uses default model from settings."""
         mock_settings = Mock()
-        mock_settings.LLM_MODEL = "gpt-4o"
+        mock_settings.ROUTER_LLM_MODEL = None
+        mock_settings.LLM_MODEL = "gpt-3.5"
         mock_settings.ensure_openai_api_key.return_value = "test-key"
         mock_get_settings.return_value = mock_settings
 
         llm = get_router_agent_llm()
 
         assert isinstance(llm, ChatOpenAI)
-        assert llm.model_name == "gpt-4o"
+        assert llm.model_name == "gpt-3.5"
+        assert llm.temperature == 0
+
+    @patch("app.core.llm.get_settings")
+    def test_get_router_agent_llm_uses_configured_model(self, mock_get_settings):
+        """Test that get_router_agent_llm uses configured model from settings."""
+        mock_settings = Mock()
+        mock_settings.LLM_MODEL = "gpt-4"
+        mock_settings.ROUTER_LLM_MODEL = "gpt-3.5"
+        mock_settings.ensure_openai_api_key.return_value = "test-key"
+        mock_get_settings.return_value = mock_settings
+
+        llm = get_router_agent_llm()
+
+        assert isinstance(llm, ChatOpenAI)
+        assert llm.model_name == "gpt-3.5"
         assert llm.temperature == 0
 
     @patch("app.core.llm.get_settings")
@@ -100,7 +132,7 @@ class TestConvenienceFunctions:
         """Test that different agents can use different models if configured."""
         # First call with gpt-4
         mock_settings = Mock()
-        mock_settings.LLM_MODEL = "gpt-4"
+        mock_settings.MATH_LLM_MODEL = "gpt-4"
         mock_settings.ensure_openai_api_key.return_value = "test-key"
         mock_get_settings.return_value = mock_settings
 
@@ -108,7 +140,7 @@ class TestConvenienceFunctions:
         assert math_llm.model_name == "gpt-4"
 
         # Second call with gpt-4o (simulating different configuration)
-        mock_settings.LLM_MODEL = "gpt-4o"
+        mock_settings.ROUTER_LLM_MODEL = "gpt-4o"
         router_llm = get_router_agent_llm()
         assert router_llm.model_name == "gpt-4o"
 
@@ -188,13 +220,14 @@ class TestEnvironmentVariableConfiguration:
     """Test that LLM functions work with environment variable configuration."""
 
     @patch.dict(
-        os.environ, {"LLM_MODEL": "gpt-4o", "EMBEDDING_MODEL": "text-embedding-3-large"}
+        os.environ,
+        {"MATH_LLM_MODEL": "gpt-4o", "EMBEDDING_MODEL": "text-embedding-3-large"},
     )
     @patch("app.core.llm.get_settings")
     def test_math_agent_with_env_config(self, mock_get_settings):
         """Test that math agent uses environment-configured model."""
         mock_settings = Mock()
-        mock_settings.LLM_MODEL = "gpt-4o"  # From env var
+        mock_settings.MATH_LLM_MODEL = "gpt-4o"  # From env var
         mock_settings.ensure_openai_api_key.return_value = "test-key"
         mock_get_settings.return_value = mock_settings
 
@@ -202,13 +235,14 @@ class TestEnvironmentVariableConfiguration:
         assert llm.model_name == "gpt-4o"
 
     @patch.dict(
-        os.environ, {"LLM_MODEL": "gpt-4", "EMBEDDING_MODEL": "text-embedding-3-small"}
+        os.environ,
+        {"ROUTER_LLM_MODEL": "gpt-4", "EMBEDDING_MODEL": "text-embedding-3-small"},
     )
     @patch("app.core.llm.get_settings")
     def test_router_agent_with_env_config(self, mock_get_settings):
         """Test that router agent uses environment-configured model."""
         mock_settings = Mock()
-        mock_settings.LLM_MODEL = "gpt-4"  # From env var
+        mock_settings.ROUTER_LLM_MODEL = "gpt-4"  # From env var
         mock_settings.ensure_openai_api_key.return_value = "test-key"
         mock_get_settings.return_value = mock_settings
 

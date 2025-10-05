@@ -57,27 +57,13 @@ class Settings(BaseSettings):
     def REQUEST_HEADERS(self) -> dict[str, str]:
         return {"User-Agent": self.REQUEST_HEADERS_USER_AGENT}
 
-    @field_validator("LLM_MODEL")
+    @field_validator("LLM_MODEL", "EMBEDDING_MODEL")
     @classmethod
-    def validate_llm_model(cls, v: str) -> str:
-        """Validate that the LLM model is a valid OpenAI model name."""
-        # Strip whitespace first
+    def validate_model(cls, v: str) -> str:
         v = v.strip()
 
         if not v:
-            raise ValueError("LLM_MODEL cannot be empty")
-
-        return v
-
-    @field_validator("EMBEDDING_MODEL")
-    @classmethod
-    def validate_embedding_model(cls, v: str) -> str:
-        """Validate that the embedding model is a valid OpenAI model name."""
-        # Strip whitespace first
-        v = v.strip()
-
-        if not v:
-            raise ValueError("EMBEDDING_MODEL cannot be empty")
+            raise ValueError("Field cannot be empty")
 
         return v
 

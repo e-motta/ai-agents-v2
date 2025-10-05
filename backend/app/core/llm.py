@@ -13,8 +13,6 @@ from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
 
 from app.core.settings import get_settings
 
-settings = get_settings()
-
 
 def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> ChatOpenAI:
     """
@@ -71,14 +69,17 @@ def setup_llamaindex_settings(
 # Convenience functions for common configurations
 def get_math_agent_llm() -> ChatOpenAI:
     """Get ChatOpenAI LLM configured for math agent."""
+    settings = get_settings()
     return get_chat_openai_llm(model=settings.MATH_LLM_MODEL, temperature=0)
 
 
 def get_router_agent_llm() -> ChatOpenAI:
     """Get ChatOpenAI LLM configured for router agent."""
+    settings = get_settings()
     return get_chat_openai_llm(model=settings.ROUTER_LLM_MODEL, temperature=0)
 
 
 def setup_knowledge_agent_settings() -> None:
     """Setup LlamaIndex settings for knowledge agent."""
+    settings = get_settings()
     setup_llamaindex_settings(llm_model=settings.KNOWLEDGE_LLM_MODEL, llm_temperature=0)

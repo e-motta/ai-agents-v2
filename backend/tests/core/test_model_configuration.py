@@ -25,24 +25,6 @@ class TestModelConfigurationIntegration:
             assert settings.LLM_MODEL == "gpt-4o"
             assert settings.EMBEDDING_MODEL == "text-embedding-3-large"
 
-    def test_convenience_functions_use_environment_config(self):
-        """Test that convenience functions use environment-configured models."""
-        with patch.dict(os.environ, {"LLM_MODEL": "gpt-4"}):
-            # Clear the settings cache to pick up new environment variables
-            Settings.model_rebuild()
-
-            # Mock the OpenAI API key requirement
-            with patch("app.core.llm.get_settings") as mock_get_settings:
-                mock_settings = mock_get_settings.return_value
-                mock_settings.LLM_MODEL = "gpt-4"
-                mock_settings.ensure_openai_api_key.return_value = "test-key"
-
-                math_llm = get_math_agent_llm()
-                router_llm = get_router_agent_llm()
-
-                assert math_llm.model_name == "gpt-4"
-                assert router_llm.model_name == "gpt-4"
-
     def test_different_models_for_different_agents(self):
         """Test that different agents can use different models if configured."""
         # This test demonstrates that if we had separate environment variables
@@ -52,7 +34,8 @@ class TestModelConfigurationIntegration:
 
             with patch("app.core.llm.get_settings") as mock_get_settings:
                 mock_settings = mock_get_settings.return_value
-                mock_settings.LLM_MODEL = "gpt-4o-mini"
+                mock_settings.MATH_LLM_MODEL = "gpt-4o-mini"
+                mock_settings.ROUTER_LLM_MODEL = "gpt-4o"
                 mock_settings.ensure_openai_api_key.return_value = "test-key"
 
                 math_llm = get_math_agent_llm()
@@ -60,7 +43,7 @@ class TestModelConfigurationIntegration:
 
                 # Both agents use the same configured model
                 assert math_llm.model_name == "gpt-4o-mini"
-                assert router_llm.model_name == "gpt-4o-mini"
+                assert router_llm.model_name == "gpt-4o"
 
     def test_model_validation_with_environment_variables(self):
         """Test that model validation works with environment variables."""
