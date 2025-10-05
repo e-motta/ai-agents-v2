@@ -114,4 +114,4 @@ jobs:
       - name: Run Tests with Coverage
         if: steps.changes.outputs.backend == 'true'
         working-directory: ./backend
-        run: poetry run pytest --cov=app --cov-report=xml --cov-fail-under=60
+        run: poetry run pytest --cov=app --cov-fail-under=80
