@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr  # noqa: TC002
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     # LLM defaults
     LLM_MODEL: str = "gpt-3.5-turbo"
+    ROUTER_LLM_MODEL: str | None = None
+    MATH_LLM_MODEL: str | None = None
+    KNOWLEDGE_LLM_MODEL: str | None = None
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     CHUNK_SIZE: int = 1024
     CHUNK_OVERLAP: int = 20
@@ -53,6 +56,16 @@ class Settings(BaseSettings):
     @property
     def REQUEST_HEADERS(self) -> dict[str, str]:
         return {"User-Agent": self.REQUEST_HEADERS_USER_AGENT}
+
+    @field_validator("LLM_MODEL", "EMBEDDING_MODEL")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        v = v.strip()
+
+        if not v:
+            raise ValueError("Field cannot be empty")
+
+        return v
 
     # Helpers
     def ensure_openai_api_key(self) -> str:

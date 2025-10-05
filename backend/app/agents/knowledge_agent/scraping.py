@@ -11,10 +11,6 @@ from app.core.settings import get_settings
 
 logger = get_logger(__name__)
 
-_settings = get_settings()
-BASE_URL = _settings.BASE_URL
-REQUEST_HEADERS = _settings.REQUEST_HEADERS
-
 
 def _scrape_page_content(url: str) -> dict[str, Any]:
     """
@@ -26,10 +22,13 @@ def _scrape_page_content(url: str) -> dict[str, Any]:
     Returns:
         Dictionary containing text content and metadata
     """
+    settings = get_settings()
+    request_headers = settings.REQUEST_HEADERS
+
     try:
         logger.info("Scraping content from URL", url=url)
 
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(url, headers=request_headers, timeout=30)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -66,12 +65,15 @@ def _find_collection_links(base_url: str) -> set[str]:
     Returns:
         Set of collection URLs
     """
+    settings = get_settings()
+    request_headers = settings.REQUEST_HEADERS
+
     collection_links = set()
 
     try:
         logger.info("Finding collection links", base_url=base_url)
 
-        response = requests.get(base_url, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(base_url, headers=request_headers, timeout=30)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -112,12 +114,15 @@ def _find_article_links(collection_url: str) -> set[str]:
     Returns:
         Set of article URLs
     """
+    settings = get_settings()
+    request_headers = settings.REQUEST_HEADERS
+
     article_links = set()
 
     try:
         logger.info("Finding article links", collection_url=collection_url)
 
-        response = requests.get(collection_url, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(collection_url, headers=request_headers, timeout=30)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -155,6 +160,9 @@ def crawl_help_center() -> list[Document]:
     Returns:
         List of LlamaIndex Document objects
     """
+    settings = get_settings()
+    base_url = settings.BASE_URL
+
     documents = []
     visited_urls = set()
 
@@ -163,7 +171,7 @@ def crawl_help_center() -> list[Document]:
         logger.info("Starting comprehensive crawl of InfinitePay help center")
 
         # Step 1: Find all collection links
-        collection_links = _find_collection_links(BASE_URL)
+        collection_links = _find_collection_links(base_url)
 
         # Step 2: Find all article links from collections
         all_article_links = set()

@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 class RedisService:
     """Redis service for conversation history management."""
 
-    def __init__(self, settings: Any = None) -> None:
+    def __init__(self) -> None:
         self.redis_client: Redis
         """
         Initialize Redis connection using application settings.
@@ -30,9 +30,7 @@ class RedisService:
         Args:
             settings: Optional settings instance. If None, will use get_settings()
         """
-        if settings is None:
-            settings = get_settings()
-
+        settings = get_settings()
         self.settings = settings
 
         try:

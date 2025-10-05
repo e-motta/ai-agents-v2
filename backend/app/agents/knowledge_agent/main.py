@@ -15,25 +15,26 @@ from app.enums import ErrorMessage
 from app.security.prompts import KNOWLEDGE_AGENT_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
-_settings = get_settings()
-VECTOR_STORE_PATH = _settings.VECTOR_STORE_PATH
-COLLECTION_NAME = _settings.COLLECTION_NAME
 
 
 def build_index_from_scratch() -> None:
     """
     Crawls, scrapes, and builds the vector store from scratch.
     """
+    settings = get_settings()
+    vector_store_path = settings.VECTOR_STORE_PATH
+    collection_name = settings.COLLECTION_NAME
+
     start_time = time.time()
 
-    if VECTOR_STORE_PATH.exists():
+    if vector_store_path.exists():
         logger.warning(
             "Vector store already exists. Deleting contents to rebuild.",
-            vector_store_path=str(VECTOR_STORE_PATH),
+            vector_store_path=str(vector_store_path),
         )
         try:
             # Only delete contents, not the directory itself (since it's mounted)
-            for item in VECTOR_STORE_PATH.iterdir():
+            for item in vector_store_path.iterdir():
                 if item.is_dir():
                     shutil.rmtree(item)
                 else:
@@ -44,7 +45,7 @@ def build_index_from_scratch() -> None:
                     "Cannot delete vector store contents (resource busy). "
                     "This may be due to multiple pods accessing the same PVC. "
                     "Attempting to build index in existing directory.",
-                    vector_store_path=str(VECTOR_STORE_PATH),
+                    vector_store_path=str(vector_store_path),
                     error=str(e),
                 )
                 # Don't exit, continue with building in the existing directory
@@ -53,8 +54,8 @@ def build_index_from_scratch() -> None:
 
     logger.info(
         "Creating new vector store",
-        vector_store_path=str(VECTOR_STORE_PATH),
-        collection_name=COLLECTION_NAME,
+        vector_store_path=str(vector_store_path),
+        collection_name=collection_name,
     )
     setup_knowledge_agent_settings()
 
@@ -64,22 +65,22 @@ def build_index_from_scratch() -> None:
         logger.error(error_msg)
         raise ValueError(error_msg)
 
-    chroma_client = chromadb.PersistentClient(path=str(VECTOR_STORE_PATH / "chroma_db"))
-    chroma_collection = chroma_client.create_collection(COLLECTION_NAME)
+    chroma_client = chromadb.PersistentClient(path=str(vector_store_path / "chroma_db"))
+    chroma_collection = chroma_client.create_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
     index = VectorStoreIndex.from_documents(
         documents, storage_context=storage_context, show_progress=True
     )
-    index.storage_context.persist(persist_dir=str(VECTOR_STORE_PATH))
+    index.storage_context.persist(persist_dir=str(vector_store_path))
 
     execution_time = time.time() - start_time
     logger.info(
         "Vector store built and persisted successfully",
         documents_count=len(documents),
         execution_time=execution_time,
-        vector_store_path=str(VECTOR_STORE_PATH),
+        vector_store_path=str(vector_store_path),
     )
 
 
@@ -88,19 +89,23 @@ def get_query_engine() -> BaseQueryEngine | None:
     FastAPI Dependency: Loads the pre-built index from disk and returns a
     configured query engine. Returns None if the vector store is not found.
     """
+    settings = get_settings()
+    vector_store_path = settings.VECTOR_STORE_PATH
+    collection_name = settings.COLLECTION_NAME
+
     start_time = time.time()
 
     logger.info(
         "Initializing query engine from persisted store",
-        vector_store_path=str(VECTOR_STORE_PATH),
-        collection_name=COLLECTION_NAME,
+        vector_store_path=str(vector_store_path),
+        collection_name=collection_name,
     )
 
-    if not VECTOR_STORE_PATH.exists():
+    if not vector_store_path.exists():
         logger.warning(
             "Vector store not found. "
             "Knowledge agent is disabled until the index is built.",
-            vector_store_path=str(VECTOR_STORE_PATH),
+            vector_store_path=str(vector_store_path),
         )
         return None
 
@@ -110,17 +115,17 @@ def get_query_engine() -> BaseQueryEngine | None:
     # Load the persisted ChromaDB store
     try:
         chroma_client = chromadb.PersistentClient(
-            path=str(VECTOR_STORE_PATH / "chroma_db")
+            path=str(vector_store_path / "chroma_db")
         )
-        chroma_collection = chroma_client.get_collection(COLLECTION_NAME)
+        chroma_collection = chroma_client.get_collection(collection_name)
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     except Exception as e:
         logger.warning(
             "Failed to load vector store collection. "
             "Knowledge agent will be disabled until the index is built.",
-            collection_name=COLLECTION_NAME,
+            collection_name=collection_name,
             error=str(e),
-            vector_store_path=str(VECTOR_STORE_PATH),
+            vector_store_path=str(vector_store_path),
         )
         return None
 
@@ -131,7 +136,7 @@ def get_query_engine() -> BaseQueryEngine | None:
     logger.info(
         "Query engine initialized successfully",
         execution_time=execution_time,
-        vector_store_path=str(VECTOR_STORE_PATH),
+        vector_store_path=str(vector_store_path),
     )
 
     # Return the configured query engine
