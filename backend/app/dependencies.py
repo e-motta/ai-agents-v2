@@ -38,15 +38,23 @@ def get_router_llm() -> ChatOpenAI:
 
 
 @lru_cache(maxsize=1)
+def _get_knowledge_engine_cached() -> BaseQueryEngine | None:
+    return get_query_engine()
+
+
 def get_knowledge_engine() -> BaseQueryEngine | None:
     """
     Dependency: return a cached instance of the query engine.
 
     Uses LRU cache to ensure the expensive client is created once
     per process and reused across requests.
-    Returns None if the vector store is not available.
+    Returns None and does not cache it if the vector store is not available.
     """
-    return get_query_engine()
+    engine = _get_knowledge_engine_cached()
+    if engine is None:
+        _get_knowledge_engine_cached.cache_clear()
+        engine = _get_knowledge_engine_cached()
+    return engine
 
 
 def get_sanitized_message_from_request(payload: "ChatRequest") -> str:
