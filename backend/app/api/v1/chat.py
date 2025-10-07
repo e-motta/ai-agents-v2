@@ -3,20 +3,20 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from langchain_openai.chat_models.base import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from app.agents.knowledge_agent import query_knowledge
 from app.agents.math_agent import solve_math
 from app.agents.router_agent import convert_response, route_query
-from app.core.decorators import log_and_handle_agent_errors
+from app.core.decorators import log_agent, raise_agent_exception
 from app.core.error_handling import (
     create_redis_error,
     create_service_unavailable_error,
     create_validation_error,
 )
-from app.core.logging import get_logger, log_system_event
+from app.core.logging import get_logger
 from app.dependencies import (
     RedisServiceDep,
     SanitizedMessage,
@@ -31,14 +31,19 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@log_and_handle_agent_errors(logger, agent_name="MathAgent", error_status_code=400)
-async def _process_math(context: dict[str, Any]) -> str:
+@raise_agent_exception("MathAgent", error_status_code=status.HTTP_400_BAD_REQUEST)
+@log_agent(logger, "MathAgent")
+async def _process_math(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle MathAgent flow."""
-    return await solve_math(context["sanitized_message"], context["math_llm"])
+    final_response = await solve_math(context["sanitized_message"], context["math_llm"])
+    return final_response, WorkflowStep(
+        agent="MathAgent", action="process_math", result=final_response
+    )
 
 
-@log_and_handle_agent_errors(logger, agent_name="KnowledgeAgent", error_status_code=400)
-async def _process_knowledge(context: dict[str, Any]) -> str:
+@raise_agent_exception("KnowledgeAgent", error_status_code=status.HTTP_400_BAD_REQUEST)
+@log_agent(logger, "KnowledgeAgent")
+async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle KnowledgeAgent flow."""
     knowledge_engine = context["knowledge_engine"]
     if knowledge_engine is None:
@@ -46,35 +51,26 @@ async def _process_knowledge(context: dict[str, Any]) -> str:
             service_name="Knowledge Base",
             details=ErrorMessage.KNOWLEDGE_BASE_UNAVAILABLE,
         )
-    return await query_knowledge(context["sanitized_message"], knowledge_engine)
-
-
-def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
-    """Handle unsupported language decision."""
-    payload = context["payload"]
-    final_response = ErrorMessage.UNSUPPORTED_LANGUAGE
-    log_system_event(
-        logger=logger,
-        event="unsupported_language_rejected",
-        conversation_id=payload.conversation_id,
-        user_id=payload.user_id,
+    final_response = await query_knowledge(
+        context["sanitized_message"], knowledge_engine
     )
     return final_response, WorkflowStep(
+        agent="KnowledgeAgent", action="process_knwoledge", result=final_response
+    )
+
+
+@log_agent(logger, "UnsupportedLanguage")
+def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
+    """Handle unsupported language decision."""
+    return ErrorMessage.UNSUPPORTED_LANGUAGE, WorkflowStep(
         agent="System", action="reject", result=str(ResponseEnum.UnsupportedLanguage)
     )
 
 
-def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
+@log_agent(logger, "Error")
+def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
     """Handle generic error decision."""
-    payload = context["payload"]
-    final_response = ErrorMessage.GENERIC_ERROR
-    log_system_event(
-        logger=logger,
-        event="error_processing_request",
-        conversation_id=payload.conversation_id,
-        user_id=payload.user_id,
-    )
-    return final_response, WorkflowStep(
+    return ErrorMessage.GENERIC_ERROR, WorkflowStep(
         agent="System", action="error", result=str(ResponseEnum.Error)
     )
 

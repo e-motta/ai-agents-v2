@@ -60,7 +60,7 @@ class TestChatAPI:
 
         math_step = data["agent_workflow"][1]
         assert math_step["agent"] == "MathAgent"
-        assert math_step["action"] == "_process_math"
+        assert math_step["action"] == "process_math"
         assert math_step["result"] == "4"
 
     def test_chat_knowledge_query_success(
@@ -107,7 +107,7 @@ class TestChatAPI:
 
         knowledge_step = data["agent_workflow"][1]
         assert knowledge_step["agent"] == "KnowledgeAgent"
-        assert knowledge_step["action"] == "_process_knowledge"
+        assert knowledge_step["action"] == "process_knowledge"
         assert knowledge_step["result"] == "The fees are 2.5% per transaction."
 
     def test_chat_unsupported_language(

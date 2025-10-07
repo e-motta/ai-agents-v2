@@ -5,8 +5,6 @@ This module provides a function to route user queries to the appropriate agent
 based on the query content using an LLM classifier.
 """
 
-import time
-
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
@@ -154,7 +152,6 @@ async def route_query(
         )
         return ResponseEnum.KnowledgeAgent
 
-    start_time = time.time()
     try:
         logger.info(
             "Routing query",
@@ -178,15 +175,12 @@ async def route_query(
         else:
             response_text = response.content.strip()
 
-        execution_time = time.time() - start_time
-
         # Log the decision with structured fields
         log_agent_decision(
             logger=logger,
             conversation_id=conversation_id or "unknown",
             user_id=user_id or "unknown",
             decision=response_text,
-            execution_time=execution_time,
             query_preview=cleaned_query[:100],
         )
 
@@ -194,13 +188,11 @@ async def route_query(
         return _validate_response(response_text)
 
     except Exception as e:
-        execution_time = time.time() - start_time
         logger.exception(
             "Error routing query",
             conversation_id=conversation_id,
             user_id=user_id,
             error=str(e),
-            execution_time=execution_time,
             query_preview=cleaned_query[:100],
         )
         # Default to Error for safety
@@ -230,8 +222,6 @@ async def convert_response(
     Raises:
         ValueError: If the conversion fails
     """
-    start_time = time.time()
-
     logger.info(
         "Starting response conversion",
         agent_type=agent_type,
@@ -264,14 +254,11 @@ Please convert this agent response into a conversational format
         else:
             converted_response = response.content.strip()
 
-        execution_time = time.time() - start_time
-
         # Validate that we got a reasonable response
         if not converted_response:
             logger.error(
                 "Response conversion failed - no result",
                 agent_type=agent_type,
-                execution_time=execution_time,
             )
             # Fallback to original response if conversion fails
             return agent_response
@@ -281,18 +268,15 @@ Please convert this agent response into a conversational format
             agent_type=agent_type,
             original_response_preview=agent_response[:100],
             converted_response_preview=converted_response[:100],
-            execution_time=execution_time,
         )
 
         return converted_response
 
     except Exception as e:
-        execution_time = time.time() - start_time
         logger.exception(
             "Response conversion error",
             agent_type=agent_type,
             error=str(e),
-            execution_time=execution_time,
         )
         # Fallback to original response if conversion fails
         return agent_response

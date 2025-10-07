@@ -1,6 +1,5 @@
 import errno
 import shutil
-import time
 
 import chromadb
 from llama_index.core import StorageContext, VectorStoreIndex
@@ -24,8 +23,6 @@ def build_index_from_scratch() -> None:
     settings = get_settings()
     vector_store_path = settings.VECTOR_STORE_PATH
     collection_name = settings.COLLECTION_NAME
-
-    start_time = time.time()
 
     if vector_store_path.exists():
         logger.warning(
@@ -75,11 +72,9 @@ def build_index_from_scratch() -> None:
     )
     index.storage_context.persist(persist_dir=str(vector_store_path))
 
-    execution_time = time.time() - start_time
     logger.info(
         "Vector store built and persisted successfully",
         documents_count=len(documents),
-        execution_time=execution_time,
         vector_store_path=str(vector_store_path),
     )
 
@@ -92,8 +87,6 @@ def get_query_engine() -> BaseQueryEngine | None:
     settings = get_settings()
     vector_store_path = settings.VECTOR_STORE_PATH
     collection_name = settings.COLLECTION_NAME
-
-    start_time = time.time()
 
     logger.info(
         "Initializing query engine from persisted store",
@@ -132,10 +125,8 @@ def get_query_engine() -> BaseQueryEngine | None:
     # Load the index from the vector store
     index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-    execution_time = time.time() - start_time
     logger.info(
         "Query engine initialized successfully",
-        execution_time=execution_time,
         vector_store_path=str(vector_store_path),
     )
 
@@ -158,8 +149,6 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
     Returns:
         The answer from the knowledge base.
     """
-    start_time = time.time()
-
     if not query:
         error_msg = "Query cannot be empty."
         raise ValueError(error_msg)
@@ -170,7 +159,6 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
         # Use the native async method for non-blocking I/O
         response = await query_engine.aquery(query)
         answer = str(response).strip()
-        execution_time = time.time() - start_time
 
         # Extract source information from the response
         sources = []
@@ -188,7 +176,6 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
             logger.info(
                 "No information found in knowledge base",
                 query=query,
-                execution_time=execution_time,
                 sources=sources,
             )
             return ErrorMessage.KNOWLEDGE_NO_INFORMATION
@@ -197,17 +184,14 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
             "Knowledge base query completed",
             query=query,
             answer_preview=answer[:100],
-            execution_time=execution_time,
             sources=sources,
         )
         return answer
     except Exception as e:
-        execution_time = time.time() - start_time
         logger.exception(
             "Error querying knowledge base",
             query=query,
             error=str(e),
-            execution_time=execution_time,
         )
         error_msg = f"{ErrorMessage.KNOWLEDGE_QUERY_FAILED}: {e!s}"
         raise ValueError(error_msg) from e

@@ -27,21 +27,21 @@ def add_timestamp(
 
 def add_agent_context(
     logger: Any,
-    method_name: str,  # noqa: ARG001
+    _: str,
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
     """Add agent context to log events."""
     # Extract agent name from logger name if available
-    logger_name = logger.name if hasattr(logger, "name") else ""
-    if "router_agent" in logger_name:
-        event_dict["agent"] = "RouterAgent"
-    elif "math_agent" in logger_name:
-        event_dict["agent"] = "MathAgent"
-    elif "knowledge_agent" in logger_name:
-        event_dict["agent"] = "KnowledgeAgent"
-    else:
-        event_dict["agent"] = "System"
-
+    logger_name = getattr(logger, "name", "").lower()
+    agents = {
+        "router_agent": "RouterAgent",
+        "math_agent": "MathAgent",
+        "knowledge_agent": "KnowledgeAgent",
+    }
+    event_dict["agent"] = next(
+        (name for key, name in agents.items() if key in logger_name),
+        "System",
+    )
     return event_dict
 
 
