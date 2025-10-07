@@ -9,7 +9,7 @@ from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.core.logging import get_logger
-from app.enums import ErrorMessage
+from app.enums import SystemMessages
 from app.security.prompts import MATH_AGENT_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
@@ -21,7 +21,7 @@ def _validate_math_response(result: str, query: str) -> None:
             "Math evaluation failed - no result",
             query=query,
         )
-        error_msg = f"{ErrorMessage.MATH_EVALUATION_FAILED}: {query}"
+        error_msg = f"{SystemMessages.MATH_EVALUATION_FAILED}: {query}"
         raise ValueError(error_msg)
 
     try:
@@ -47,7 +47,7 @@ def _validate_math_response(result: str, query: str) -> None:
             query=query,
             result=result,
         )
-        error_msg = f"{ErrorMessage.MATH_NON_NUMERICAL_RESULT}: '{result}'"
+        error_msg = f"{SystemMessages.MATH_NON_NUMERICAL_RESULT}: '{result}'"
         raise ValueError(error_msg) from e
 
 
@@ -97,5 +97,5 @@ async def solve_math(query: str, llm: ChatOpenAI) -> str:
             query=query,
             error=str(e),
         )
-        error_msg = f"{ErrorMessage.MATH_EVALUATION_FAILED} '{query}': {e!s}"
+        error_msg = f"{SystemMessages.MATH_EVALUATION_FAILED} '{query}': {e!s}"
         raise ValueError(error_msg) from e

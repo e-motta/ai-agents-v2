@@ -24,38 +24,38 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import Agent, ErrorMessage, WorkflowSignal
+from app.enums import Agents, KnowledgeAgentMessages, SystemMessages, WorkflowSignals
 from app.models import ChatRequest, ChatResponse, WorkflowStep
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@handle_process_exception(Agent.MathAgent, "process_math")
-@log_process(logger, Agent.MathAgent)
+@handle_process_exception(Agents.MathAgent, "process_math")
+@log_process(logger, Agents.MathAgent)
 async def _process_math(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle MathAgent flow."""
     final_response = await solve_math(context["sanitized_message"], context["math_llm"])
     return final_response, WorkflowStep(
-        agent=Agent.MathAgent, action="process_math", result=final_response
+        agent=Agents.MathAgent, action="process_math", result=final_response
     )
 
 
-@handle_process_exception(Agent.KnowledgeAgent, "process_knowledge")
-@log_process(logger, Agent.KnowledgeAgent)
+@handle_process_exception(Agents.KnowledgeAgent, "process_knowledge")
+@log_process(logger, Agents.KnowledgeAgent)
 async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle KnowledgeAgent flow."""
     knowledge_engine = context["knowledge_engine"]
     if knowledge_engine is None:
         raise create_service_unavailable_error(
             service_name="Knowledge Base",
-            details=ErrorMessage.KNOWLEDGE_BASE_UNAVAILABLE,
+            details=KnowledgeAgentMessages.KNOWLEDGE_BASE_UNAVAILABLE,
         )
     final_response = await query_knowledge(
         context["sanitized_message"], knowledge_engine
     )
     return final_response, WorkflowStep(
-        agent=Agent.KnowledgeAgent,
+        agent=Agents.KnowledgeAgent,
         action="process_knowledge",
         result=final_response,
     )
@@ -64,29 +64,29 @@ async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep
 @log_process(logger, "UnsupportedLanguage")
 def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
     """Handle unsupported language decision."""
-    return ErrorMessage.UNSUPPORTED_LANGUAGE, WorkflowStep(
-        agent="System", action="reject", result=str(WorkflowSignal.UnsupportedLanguage)
+    return SystemMessages.UNSUPPORTED_LANGUAGE, WorkflowStep(
+        agent="System", action="reject", result=str(WorkflowSignals.UnsupportedLanguage)
     )
 
 
 @log_process(logger, "Error")
 def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
     """Handle generic error decision."""
-    return ErrorMessage.GENERIC_ERROR, WorkflowStep(
-        agent="System", action="error", result=str(WorkflowSignal.Error)
+    return SystemMessages.GENERIC_ERROR, WorkflowStep(
+        agent="System", action="error", result=str(WorkflowSignals.Error)
     )
 
 
 HANDLER_BY_DECISION: dict[
-    Agent | WorkflowSignal,
+    Agents | WorkflowSignals,
     Callable[
         [dict[str, Any]], Awaitable[tuple[str, WorkflowStep]] | tuple[str, WorkflowStep]
     ],
 ] = {
-    Agent.MathAgent: _process_math,
-    Agent.KnowledgeAgent: _process_knowledge,
-    WorkflowSignal.UnsupportedLanguage: _process_unsupported_language,
-    WorkflowSignal.Error: _process_error,
+    Agents.MathAgent: _process_math,
+    Agents.KnowledgeAgent: _process_knowledge,
+    WorkflowSignals.UnsupportedLanguage: _process_unsupported_language,
+    WorkflowSignals.Error: _process_error,
 }
 
 
@@ -170,7 +170,7 @@ async def chat(
             user_id=payload.user_id,
             error=str(e),
         )
-        decision = WorkflowSignal.Error
+        decision = WorkflowSignals.Error
 
     agent_workflow: list[WorkflowStep] = [
         WorkflowStep(agent="RouterAgent", action="route_query", result=str(decision))
@@ -192,7 +192,7 @@ async def chat(
     agent_workflow.append(step)
 
     try:
-        if decision in [Agent.MathAgent]:
+        if decision in [Agents.MathAgent]:
             final_response = await convert_response(
                 original_query=sanitized_message,
                 agent_response=source_agent_response,

@@ -8,7 +8,7 @@ from typing import Any
 from structlog.stdlib import BoundLogger
 
 from app.core.logging import log_agent_processing
-from app.enums import Agent, ErrorMessage
+from app.enums import Agents, SystemMessages
 from app.models import ChatRequest, WorkflowStep
 
 
@@ -73,8 +73,8 @@ def handle_process_exception(agent_name: str, action: str):
             try:
                 return await func(*args, **kwargs)
             except Exception:
-                if agent_name in {Agent.KnowledgeAgent, Agent.MathAgent}:
-                    final_response = ErrorMessage.GENERIC_ERROR
+                if agent_name in {Agents.KnowledgeAgent, Agents.MathAgent}:
+                    final_response = SystemMessages.GENERIC_ERROR
                     workflow_step = WorkflowStep(
                         agent=agent_name,
                         action=action,

@@ -1,17 +1,17 @@
 from enum import StrEnum
 
 
-class Agent(StrEnum):
+class Agents(StrEnum):
     MathAgent = "MathAgent"
     KnowledgeAgent = "KnowledgeAgent"
 
 
-class WorkflowSignal(StrEnum):
+class WorkflowSignals(StrEnum):
     UnsupportedLanguage = "UnsupportedLanguage"
     Error = "Error"
 
 
-class ErrorMessage(StrEnum):
+class SystemMessages(StrEnum):
     """Standardized error messages for the application."""
 
     # General errors
@@ -28,15 +28,6 @@ class ErrorMessage(StrEnum):
     MATH_EVALUATION_FAILED = "I couldn't solve that mathematical expression."
     MATH_NON_NUMERICAL_RESULT = "The result is not a valid number."
 
-    # Knowledge Agent errors
-    KNOWLEDGE_BASE_UNAVAILABLE = (
-        "The knowledge base is not available at the moment. It may be initializing."
-    )
-    KNOWLEDGE_NO_INFORMATION = (
-        "I don't have information about that in the available documentation."
-    )
-    KNOWLEDGE_QUERY_FAILED = "Error querying the knowledge base."
-
     # API errors
     API_VALIDATION_ERROR = "Request validation failed."
     API_INTERNAL_ERROR = "An internal error occurred."
@@ -44,3 +35,32 @@ class ErrorMessage(StrEnum):
 
     # Redis errors
     REDIS_OPERATION_FAILED = "Redis operation failed."
+
+
+class KnowledgeAgentMessages(StrEnum):
+    VECTOR_STORE_EXISTS = "Vector store already exists. Deleting contents to rebuild."
+    VECTOR_STORE_CANNOT_DELETE = (
+        "Cannot delete vector store contents (resource busy). "
+        "Attempting to build index in existing directory."
+    )
+    VECTOR_STORE_CREATING = "Creating new vector store"
+    VECTOR_STORE_CREATED = "Vector store built and persisted successfully"
+    DOCUMENTS_CREATING_ERROR = "No documents were created during crawling."
+
+    QUERY_ENGINE_INITIALIZING = "Initializing query engine from persisted store"
+    QUERY_ENGINE_NOT_FOUND = (
+        "Vector store not found. Knowledge agent is disabled until the index is built."
+    )
+    QUERY_ENGINE_INITIALIZED = "Query engine initialized successfully"
+
+    QUERY_CANNOT_BE_EMPTY = "Query cannot be empty."
+    QUERY_INITIALIZING = "Starting knowledge base query"
+    QUERY_COMPLETED = "Knowledge base query completed"
+
+    KNOWLEDGE_BASE_UNAVAILABLE = (
+        "The knowledge base is not available at the moment. It may be initializing."
+    )
+    KNOWLEDGE_NO_INFORMATION = (
+        "I don't have information about that in the available documentation."
+    )
+    KNOWLEDGE_QUERY_FAILED = "Error querying the knowledge base."

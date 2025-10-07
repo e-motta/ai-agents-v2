@@ -17,7 +17,7 @@ from app.agents.knowledge_agent.main import (
     get_query_engine,
     query_knowledge,
 )
-from app.enums import ErrorMessage
+from app.enums import KnowledgeAgentMessages
 
 
 class TestBuildIndexFromScratch:
@@ -384,7 +384,7 @@ class TestQueryKnowledge:
         result = await query_knowledge("Test query", mock_query_engine)
 
         # Should return no information message
-        assert result == ErrorMessage.KNOWLEDGE_NO_INFORMATION
+        assert result == KnowledgeAgentMessages.KNOWLEDGE_NO_INFORMATION
 
     @pytest.mark.asyncio
     async def test_query_knowledge_with_sources(self):
@@ -422,7 +422,7 @@ class TestQueryKnowledge:
 
         # Call the function
         with pytest.raises(
-            ValueError, match=f"{ErrorMessage.KNOWLEDGE_QUERY_FAILED}: Query failed"
+            ValueError, match=KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED
         ):
             await query_knowledge("Test query", mock_query_engine)
 
@@ -440,7 +440,7 @@ class TestQueryKnowledge:
         result = await query_knowledge("Test query", mock_query_engine)
 
         # Should return no information message
-        assert result == ErrorMessage.KNOWLEDGE_NO_INFORMATION
+        assert result == KnowledgeAgentMessages.KNOWLEDGE_NO_INFORMATION
 
     @pytest.mark.asyncio
     async def test_query_knowledge_null_response(self):
@@ -456,4 +456,4 @@ class TestQueryKnowledge:
         result = await query_knowledge("Test query", mock_query_engine)
 
         # Should return no information message
-        assert result == ErrorMessage.KNOWLEDGE_NO_INFORMATION
+        assert result == KnowledgeAgentMessages.KNOWLEDGE_NO_INFORMATION

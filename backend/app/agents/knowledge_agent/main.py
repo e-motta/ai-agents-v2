@@ -4,13 +4,15 @@ import shutil
 import chromadb
 from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.base.response.schema import RESPONSE_TYPE
+from llama_index.core.schema import NodeWithScore
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from app.agents.knowledge_agent.scraping import crawl_help_center
 from app.core.llm import setup_knowledge_agent_settings
 from app.core.logging import get_logger
 from app.core.settings import get_settings
-from app.enums import ErrorMessage
+from app.enums import KnowledgeAgentMessages
 from app.security.prompts import KNOWLEDGE_AGENT_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
@@ -26,7 +28,7 @@ def build_index_from_scratch() -> None:
 
     if vector_store_path.exists():
         logger.warning(
-            "Vector store already exists. Deleting contents to rebuild.",
+            KnowledgeAgentMessages.VECTOR_STORE_EXISTS,
             vector_store_path=str(vector_store_path),
         )
         try:
@@ -39,9 +41,7 @@ def build_index_from_scratch() -> None:
         except OSError as e:
             if e.errno == errno.EBUSY:  # Device or resource busy
                 logger.warning(
-                    "Cannot delete vector store contents (resource busy). "
-                    "This may be due to multiple pods accessing the same PVC. "
-                    "Attempting to build index in existing directory.",
+                    KnowledgeAgentMessages.VECTOR_STORE_CANNOT_DELETE,
                     vector_store_path=str(vector_store_path),
                     error=str(e),
                 )
@@ -50,7 +50,7 @@ def build_index_from_scratch() -> None:
                 raise
 
     logger.info(
-        "Creating new vector store",
+        KnowledgeAgentMessages.VECTOR_STORE_CREATING,
         vector_store_path=str(vector_store_path),
         collection_name=collection_name,
     )
@@ -58,7 +58,7 @@ def build_index_from_scratch() -> None:
 
     documents = crawl_help_center()
     if not documents:
-        error_msg = "No documents were created during crawling."
+        error_msg = KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR
         logger.error(error_msg)
         raise ValueError(error_msg)
 
@@ -73,7 +73,7 @@ def build_index_from_scratch() -> None:
     index.storage_context.persist(persist_dir=str(vector_store_path))
 
     logger.info(
-        "Vector store built and persisted successfully",
+        KnowledgeAgentMessages.VECTOR_STORE_CREATED,
         documents_count=len(documents),
         vector_store_path=str(vector_store_path),
     )
@@ -89,15 +89,14 @@ def get_query_engine() -> BaseQueryEngine | None:
     collection_name = settings.COLLECTION_NAME
 
     logger.info(
-        "Initializing query engine from persisted store",
+        KnowledgeAgentMessages.QUERY_ENGINE_INITIALIZING,
         vector_store_path=str(vector_store_path),
         collection_name=collection_name,
     )
 
     if not vector_store_path.exists():
         logger.warning(
-            "Vector store not found. "
-            "Knowledge agent is disabled until the index is built.",
+            KnowledgeAgentMessages.QUERY_ENGINE_NOT_FOUND,
             vector_store_path=str(vector_store_path),
         )
         return None
@@ -114,8 +113,7 @@ def get_query_engine() -> BaseQueryEngine | None:
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     except Exception as e:
         logger.warning(
-            "Failed to load vector store collection. "
-            "Knowledge agent will be disabled until the index is built.",
+            KnowledgeAgentMessages.QUERY_ENGINE_NOT_FOUND,
             collection_name=collection_name,
             error=str(e),
             vector_store_path=str(vector_store_path),
@@ -126,7 +124,7 @@ def get_query_engine() -> BaseQueryEngine | None:
     index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
     logger.info(
-        "Query engine initialized successfully",
+        KnowledgeAgentMessages.QUERY_ENGINE_INITIALIZED,
         vector_store_path=str(vector_store_path),
     )
 
@@ -138,60 +136,78 @@ def get_query_engine() -> BaseQueryEngine | None:
     )
 
 
+def _validate_query(query: str) -> None:
+    """Validates that the query string is not empty."""
+    if not query:
+        raise ValueError(KnowledgeAgentMessages.QUERY_CANNOT_BE_EMPTY)
+
+
+def _extract_source_from_node(
+    node: NodeWithScore,
+) -> dict[str, str | float | None] | None:
+    """Extracts metadata from a single source node if available."""
+    if not (hasattr(node, "node") and hasattr(node.node, "metadata")):
+        return None
+
+    metadata = node.node.metadata
+    return {
+        "url": metadata.get("url", "Unknown"),
+        "source": metadata.get("source", "Unknown"),
+        "score": getattr(node, "score", None),
+    }
+
+
+def _process_engine_response(
+    response: RESPONSE_TYPE,
+) -> tuple[str, list[dict[str, str | float | None]]]:
+    """Processes the raw query engine response to extract a clean answer and sources."""
+    answer = str(response).strip()
+    sources = []
+
+    if hasattr(response, "source_nodes") and response.source_nodes:
+        sources = [
+            source_info
+            for node in response.source_nodes
+            if (source_info := _extract_source_from_node(node)) is not None
+        ]
+
+    return answer, sources
+
+
 async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
     """
-    Asynchronously queries the knowledge base.
-
-    Args:
-        query: The question to ask.
-        query_engine: The query engine instance provided by the dependency.
-
-    Returns:
-        The answer from the knowledge base.
+    Queries the knowledge base, processes the response, and handles errors.
     """
-    if not query:
-        error_msg = "Query cannot be empty."
-        raise ValueError(error_msg)
+    _validate_query(query)
 
-    logger.info("Starting knowledge base query", query=query, query_preview=query[:100])
+    logger.info(
+        KnowledgeAgentMessages.QUERY_INITIALIZING,
+        query=query,
+        query_preview=query[:100],
+    )
 
     try:
-        # Use the native async method for non-blocking I/O
-        response = await query_engine.aquery(query)
-        answer = str(response).strip()
+        raw_response: RESPONSE_TYPE = await query_engine.aquery(query)
+        answer, sources = _process_engine_response(raw_response)
 
-        # Extract source information from the response
-        sources = []
-        if hasattr(response, "source_nodes") and response.source_nodes:
-            for node in response.source_nodes:
-                if hasattr(node, "node") and hasattr(node.node, "metadata"):
-                    source_info = {
-                        "url": node.node.metadata.get("url", "Unknown"),
-                        "source": node.node.metadata.get("source", "Unknown"),
-                        "score": getattr(node, "score", None),
-                    }
-                    sources.append(source_info)
-
-        if not answer or answer.lower() in ["", "none", "null"]:
+        if not answer or answer.lower() in {"", "none", "null"}:
             logger.info(
-                "No information found in knowledge base",
+                KnowledgeAgentMessages.KNOWLEDGE_NO_INFORMATION,
                 query=query,
                 sources=sources,
             )
-            return ErrorMessage.KNOWLEDGE_NO_INFORMATION
+            return KnowledgeAgentMessages.KNOWLEDGE_NO_INFORMATION
 
         logger.info(
-            "Knowledge base query completed",
+            KnowledgeAgentMessages.QUERY_COMPLETED,
             query=query,
             answer_preview=answer[:100],
             sources=sources,
         )
         return answer
+
     except Exception as e:
         logger.exception(
-            "Error querying knowledge base",
-            query=query,
-            error=str(e),
+            KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED, query=query, error=str(e)
         )
-        error_msg = f"{ErrorMessage.KNOWLEDGE_QUERY_FAILED}: {e!s}"
-        raise ValueError(error_msg) from e
+        raise ValueError(KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED) from e

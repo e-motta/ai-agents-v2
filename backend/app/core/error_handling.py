@@ -5,14 +5,16 @@ This module provides utilities for creating consistent error responses
 across the application using the ErrorResponse model and ErrorMessage enum.
 """
 
+from enum import StrEnum
+
 from fastapi import HTTPException, status
 
-from app.enums import ErrorMessage
+from app.enums import KnowledgeAgentMessages, SystemMessages
 from app.models import ErrorResponse
 
 
 def create_error_response(
-    error_message: ErrorMessage,
+    error_message: StrEnum,
     code: str,
     details: str | None = None,
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -37,7 +39,7 @@ def create_error_response(
 def create_validation_error(details: str | None = None) -> HTTPException:
     """Create a validation error response."""
     return create_error_response(
-        error_message=ErrorMessage.API_VALIDATION_ERROR,
+        error_message=SystemMessages.API_VALIDATION_ERROR,
         code="VALIDATION_ERROR",
         details=details,
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -47,7 +49,7 @@ def create_validation_error(details: str | None = None) -> HTTPException:
 def create_math_error(details: str | None = None) -> HTTPException:
     """Create a math evaluation error response."""
     return create_error_response(
-        error_message=ErrorMessage.MATH_EVALUATION_FAILED,
+        error_message=SystemMessages.MATH_EVALUATION_FAILED,
         code="MATH_ERROR",
         details=details,
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,7 +59,7 @@ def create_math_error(details: str | None = None) -> HTTPException:
 def create_knowledge_error(details: str | None = None) -> HTTPException:
     """Create a knowledge base error response."""
     return create_error_response(
-        error_message=ErrorMessage.KNOWLEDGE_QUERY_FAILED,
+        error_message=KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED,
         code="KNOWLEDGE_ERROR",
         details=details,
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,7 +71,7 @@ def create_service_unavailable_error(
 ) -> HTTPException:
     """Create a service unavailable error response."""
     return create_error_response(
-        error_message=ErrorMessage.API_SERVICE_UNAVAILABLE,
+        error_message=SystemMessages.API_SERVICE_UNAVAILABLE,
         code="SERVICE_UNAVAILABLE",
         details=details or f"{service_name} is currently unavailable",
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -79,7 +81,7 @@ def create_service_unavailable_error(
 def create_redis_error(details: str | None = None) -> HTTPException:
     """Create a Redis error response."""
     return create_error_response(
-        error_message=ErrorMessage.REDIS_OPERATION_FAILED,
+        error_message=SystemMessages.REDIS_OPERATION_FAILED,
         code="REDIS_ERROR",
         details=details,
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
