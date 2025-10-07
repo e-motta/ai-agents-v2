@@ -9,7 +9,7 @@ from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.core.logging import get_logger, log_agent_decision
-from app.enums import ResponseEnum
+from app.enums import Agent, WorkflowSignal
 from app.security.prompts import ROUTER_CONVERSION_PROMPT, ROUTER_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
@@ -31,10 +31,10 @@ def _validate_response(response: str) -> str:
 
     # Mapping of keywords to canonical agent names
     response_map = {
-        "mathagent": ResponseEnum.MathAgent,
-        "knowledgeagent": ResponseEnum.KnowledgeAgent,
-        "unsupportedlanguage": ResponseEnum.UnsupportedLanguage,
-        "error": ResponseEnum.Error,
+        "mathagent": Agent.MathAgent,
+        "knowledgeagent": Agent.KnowledgeAgent,
+        "unsupportedlanguage": WorkflowSignal.UnsupportedLanguage,
+        "error": WorkflowSignal.Error,
     }
 
     for key, value in response_map.items():
@@ -45,7 +45,7 @@ def _validate_response(response: str) -> str:
     logger.warning(
         "Invalid response from router", response=response, default_action="Error"
     )
-    return ResponseEnum.Error
+    return WorkflowSignal.Error
 
 
 def _detect_suspicious_content(query: str) -> bool:
@@ -150,7 +150,7 @@ async def route_query(
             user_id=user_id,
             query_preview=cleaned_query[:100],
         )
-        return ResponseEnum.KnowledgeAgent
+        return Agent.KnowledgeAgent
 
     try:
         logger.info(
@@ -196,7 +196,7 @@ async def route_query(
             query_preview=cleaned_query[:100],
         )
         # Default to Error for safety
-        return ResponseEnum.Error
+        return WorkflowSignal.Error
 
 
 async def convert_response(

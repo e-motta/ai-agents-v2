@@ -1,9 +1,12 @@
 from enum import StrEnum
 
 
-class ResponseEnum(StrEnum):
+class Agent(StrEnum):
     MathAgent = "MathAgent"
     KnowledgeAgent = "KnowledgeAgent"
+
+
+class WorkflowSignal(StrEnum):
     UnsupportedLanguage = "UnsupportedLanguage"
     Error = "Error"
 

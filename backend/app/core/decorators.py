@@ -5,15 +5,14 @@ import time
 from functools import wraps
 from typing import Any
 
-from fastapi import HTTPException
 from structlog.stdlib import BoundLogger
 
-from app.core.error_handling import create_knowledge_error, create_math_error
 from app.core.logging import log_agent_processing
-from app.models import ChatRequest  # noqa: TC001
+from app.enums import Agent, ErrorMessage
+from app.models import ChatRequest, WorkflowStep
 
 
-def log_agent(logger: BoundLogger, agent_name: str):
+def log_process(logger: BoundLogger, agent_name: str):
     """Decorator to handle timing, logging, and exceptions for agent processing.
 
     Works for both sync and async functions.
@@ -55,6 +54,7 @@ def log_agent(logger: BoundLogger, agent_name: str):
                     execution_time=execution_time,
                     query_preview=query_preview,
                 )
+                raise
 
             return final_response, workflow_step
 
@@ -64,7 +64,7 @@ def log_agent(logger: BoundLogger, agent_name: str):
     return decorator
 
 
-def raise_agent_exception(agent_name: str, error_status_code: int = 500):
+def handle_process_exception(agent_name: str, action: str):
     """Decorator to map exceptions to agent-specific errors."""
 
     def decorator(func):
@@ -72,12 +72,16 @@ def raise_agent_exception(agent_name: str, error_status_code: int = 500):
         async def wrapper(*args, **kwargs):
             try:
                 return await func(*args, **kwargs)
-            except Exception as e:
-                if agent_name == "MathAgent":
-                    raise create_math_error(details=str(e)) from e
-                if agent_name == "KnowledgeAgent":
-                    raise create_knowledge_error(details=str(e)) from e
-                raise HTTPException(status_code=error_status_code, detail=str(e)) from e
+            except Exception:
+                if agent_name in {Agent.KnowledgeAgent, Agent.MathAgent}:
+                    final_response = ErrorMessage.GENERIC_ERROR
+                    workflow_step = WorkflowStep(
+                        agent=agent_name,
+                        action=action,
+                        result=final_response,
+                    )
+                    return final_response, workflow_step
+                raise
 
         return wrapper
 

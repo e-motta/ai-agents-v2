@@ -3,14 +3,14 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from langchain_openai.chat_models.base import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from app.agents.knowledge_agent import query_knowledge
 from app.agents.math_agent import solve_math
 from app.agents.router_agent import convert_response, route_query
-from app.core.decorators import log_agent, raise_agent_exception
+from app.core.decorators import handle_process_exception, log_process
 from app.core.error_handling import (
     create_redis_error,
     create_service_unavailable_error,
@@ -24,25 +24,25 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import ErrorMessage, ResponseEnum
+from app.enums import Agent, ErrorMessage, WorkflowSignal
 from app.models import ChatRequest, ChatResponse, WorkflowStep
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@raise_agent_exception("MathAgent", error_status_code=status.HTTP_400_BAD_REQUEST)
-@log_agent(logger, "MathAgent")
+@handle_process_exception(Agent.MathAgent, "process_math")
+@log_process(logger, Agent.MathAgent)
 async def _process_math(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle MathAgent flow."""
     final_response = await solve_math(context["sanitized_message"], context["math_llm"])
     return final_response, WorkflowStep(
-        agent="MathAgent", action="process_math", result=final_response
+        agent=Agent.MathAgent, action="process_math", result=final_response
     )
 
 
-@raise_agent_exception("KnowledgeAgent", error_status_code=status.HTTP_400_BAD_REQUEST)
-@log_agent(logger, "KnowledgeAgent")
+@handle_process_exception(Agent.KnowledgeAgent, "process_knowledge")
+@log_process(logger, Agent.KnowledgeAgent)
 async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
     """Handle KnowledgeAgent flow."""
     knowledge_engine = context["knowledge_engine"]
@@ -55,36 +55,38 @@ async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep
         context["sanitized_message"], knowledge_engine
     )
     return final_response, WorkflowStep(
-        agent="KnowledgeAgent", action="process_knwoledge", result=final_response
+        agent=Agent.KnowledgeAgent,
+        action="process_knowledge",
+        result=final_response,
     )
 
 
-@log_agent(logger, "UnsupportedLanguage")
+@log_process(logger, "UnsupportedLanguage")
 def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
     """Handle unsupported language decision."""
     return ErrorMessage.UNSUPPORTED_LANGUAGE, WorkflowStep(
-        agent="System", action="reject", result=str(ResponseEnum.UnsupportedLanguage)
+        agent="System", action="reject", result=str(WorkflowSignal.UnsupportedLanguage)
     )
 
 
-@log_agent(logger, "Error")
+@log_process(logger, "Error")
 def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
     """Handle generic error decision."""
     return ErrorMessage.GENERIC_ERROR, WorkflowStep(
-        agent="System", action="error", result=str(ResponseEnum.Error)
+        agent="System", action="error", result=str(WorkflowSignal.Error)
     )
 
 
 HANDLER_BY_DECISION: dict[
-    ResponseEnum,
+    Agent | WorkflowSignal,
     Callable[
         [dict[str, Any]], Awaitable[tuple[str, WorkflowStep]] | tuple[str, WorkflowStep]
     ],
 ] = {
-    ResponseEnum.MathAgent: _process_math,
-    ResponseEnum.KnowledgeAgent: _process_knowledge,
-    ResponseEnum.UnsupportedLanguage: _process_unsupported_language,
-    ResponseEnum.Error: _process_error,
+    Agent.MathAgent: _process_math,
+    Agent.KnowledgeAgent: _process_knowledge,
+    WorkflowSignal.UnsupportedLanguage: _process_unsupported_language,
+    WorkflowSignal.Error: _process_error,
 }
 
 
@@ -168,7 +170,7 @@ async def chat(
             user_id=payload.user_id,
             error=str(e),
         )
-        decision = ResponseEnum.Error
+        decision = WorkflowSignal.Error
 
     agent_workflow: list[WorkflowStep] = [
         WorkflowStep(agent="RouterAgent", action="route_query", result=str(decision))
@@ -190,7 +192,7 @@ async def chat(
     agent_workflow.append(step)
 
     try:
-        if decision in [ResponseEnum.MathAgent]:
+        if decision in [Agent.MathAgent]:
             final_response = await convert_response(
                 original_query=sanitized_message,
                 agent_response=source_agent_response,
