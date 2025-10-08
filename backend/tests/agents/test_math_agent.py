@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.agents.math_agent import solve_math
+from app.enums import MathAgentMessages
 
 
 class TestSolveMath:
@@ -179,9 +180,7 @@ class TestSolveMath:
         mock_response.content = ""
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(
-            ValueError, match="I couldn't solve that mathematical expression"
-        ):
+        with pytest.raises(ValueError, match=MathAgentMessages.MATH_VALIDATION_FAILED):
             await solve_math("2 + 2", mock_llm)
 
     @pytest.mark.asyncio
@@ -192,9 +191,7 @@ class TestSolveMath:
         mock_response.content = "Error"
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(
-            ValueError, match="I couldn't solve that mathematical expression"
-        ):
+        with pytest.raises(ValueError, match=MathAgentMessages.MATH_VALIDATION_FAILED):
             await solve_math("invalid expression", mock_llm)
 
     @pytest.mark.asyncio
@@ -205,7 +202,7 @@ class TestSolveMath:
         mock_response.content = "This is not a number"
         mock_llm.ainvoke.return_value = mock_response
 
-        with pytest.raises(ValueError, match="The result is not a valid number"):
+        with pytest.raises(ValueError, match="Math validation failed"):
             await solve_math("2 + 2", mock_llm)
 
     @pytest.mark.asyncio
@@ -214,9 +211,7 @@ class TestSolveMath:
         # Mock LLM to raise an exception
         mock_llm.ainvoke.side_effect = Exception("LLM Error")
 
-        with pytest.raises(
-            ValueError, match="I couldn't solve that mathematical expression"
-        ):
+        with pytest.raises(ValueError, match=MathAgentMessages.MATH_EVALUATION_FAILED):
             await solve_math("2 + 2", mock_llm)
 
     @pytest.mark.asyncio

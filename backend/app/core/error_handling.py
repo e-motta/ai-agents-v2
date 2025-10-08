@@ -9,7 +9,7 @@ from enum import StrEnum
 
 from fastapi import HTTPException, status
 
-from app.enums import KnowledgeAgentMessages, SystemMessages
+from app.enums import KnowledgeAgentMessages, MathAgentMessages, SystemMessages
 from app.models import ErrorResponse
 
 
@@ -49,7 +49,7 @@ def create_validation_error(details: str | None = None) -> HTTPException:
 def create_math_error(details: str | None = None) -> HTTPException:
     """Create a math evaluation error response."""
     return create_error_response(
-        error_message=SystemMessages.MATH_EVALUATION_FAILED,
+        error_message=MathAgentMessages.MATH_EVALUATION_FAILED,
         code="MATH_ERROR",
         details=details,
         status_code=status.HTTP_400_BAD_REQUEST,

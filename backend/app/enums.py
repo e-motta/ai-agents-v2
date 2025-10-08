@@ -24,10 +24,6 @@ class SystemMessages(StrEnum):
         "/ Por favor, pergunte em inglês ou português."
     )
 
-    # Math Agent errors
-    MATH_EVALUATION_FAILED = "I couldn't solve that mathematical expression."
-    MATH_NON_NUMERICAL_RESULT = "The result is not a valid number."
-
     # API errors
     API_VALIDATION_ERROR = "Request validation failed."
     API_INTERNAL_ERROR = "An internal error occurred."
@@ -64,3 +60,21 @@ class KnowledgeAgentMessages(StrEnum):
         "I don't have information about that in the available documentation."
     )
     KNOWLEDGE_QUERY_FAILED = "Error querying the knowledge base."
+
+
+class MathAgentMessages(StrEnum):
+    MATH_EVALUATION_STARTING = "Starting math evaluation"
+    MATH_EVALUATION_COMPLETED = "Math evaluation completed"
+
+    MATH_NON_NUMERICAL_RESULT = "The result is not a valid number."
+    MATH_VALIDATION_FAILED = "Math validation failed."
+    MATH_EVALUATION_FAILED = "An unexpected error occurred during math evaluation"
+
+    MATH_VALIDATION_EXCEEDS_LIMIT = (
+        "Result magnitude |{value}| exceeds the limit of {max_result_value}."
+    )
+    MATH_VALIDATION_NAN = "Result is Not a Number (NaN)."
+    MATH_VALIDATION_NO_NUMERIC_DATA = (
+        "Result '{result_text}' contains no valid numeric data."
+    )
+    MATH_VALIDATION_ERROR = "LLM returned an empty or explicit error message."
