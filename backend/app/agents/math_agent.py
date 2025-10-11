@@ -7,6 +7,12 @@ import re
 
 from app.core.logging import get_logger
 from app.enums import MathAgentMessages
+from app.exceptions import (
+    MathConversionError,
+    MathEvaluationError,
+    MathResultError,
+    MathValidationError,
+)
 from app.security.prompts import MATH_AGENT_SYSTEM_PROMPT
 from app.services.llm_client import LLMClient
 
@@ -20,20 +26,41 @@ def _clean_and_convert_to_float(result_text: str) -> float:
     Clean a string to keep only numeric characters and convert it to a float.
 
     Raises:
-        ValueError: If the cleaned string cannot be converted to a valid float.
+        MathValidationError: If the result text is empty or explicitly an error.
+        MathConversionError: If the cleaned string cannot be converted to a valid float.
     """
     if not result_text or result_text.lower() == "error":
-        raise ValueError(MathAgentMessages.MATH_VALIDATION_ERROR)
-
-    cleaned_text = re.sub(r"[^0-9.\-]", "", result_text)
-    if cleaned_text in {"", "-", "."}:
-        raise ValueError(
-            MathAgentMessages.MATH_VALIDATION_NO_NUMERIC_DATA.format(
-                result_text=result_text
-            )
+        raise MathValidationError(
+            message=MathAgentMessages.MATH_VALIDATION_ERROR, result_text=result_text
         )
 
-    return float(cleaned_text)
+    # Handle special cases like NaN, inf, -inf before cleaning
+    result_lower = result_text.lower().strip()
+    if result_lower in {"nan", "inf", "-inf", "infinity", "-infinity"}:
+        try:
+            return float(result_lower)
+        except ValueError:
+            pass
+
+    cleaned_text = re.sub(r"[^0-9.\-eE]", "", result_text)
+    if cleaned_text in {"", "-", "."}:
+        raise MathConversionError(
+            message=MathAgentMessages.MATH_VALIDATION_NO_NUMERIC_DATA.format(
+                result_text=result_text
+            ),
+            input_text=result_text,
+        )
+
+    try:
+        return float(cleaned_text)
+    except ValueError as e:
+        raise MathConversionError(
+            message=MathAgentMessages.MATH_CONVERSION_FAILED.format(
+                cleaned_text=cleaned_text, error=str(e)
+            ),
+            input_text=result_text,
+            details={"cleaned_text": cleaned_text, "original_error": str(e)},
+        ) from e
 
 
 def _validate_numeric_result(value: float) -> None:
@@ -42,16 +69,20 @@ def _validate_numeric_result(value: float) -> None:
     (e.g., not NaN or too large).
 
     Raises:
-        ValueError: If the number is outside the defined limits.
+        MathResultError: If the number is outside the defined limits.
     """
     if math.isnan(value):
-        raise ValueError(MathAgentMessages.MATH_VALIDATION_NAN)
+        raise MathResultError(
+            message=MathAgentMessages.MATH_VALIDATION_NAN, value=value
+        )
 
     if abs(value) > MAX_RESULT_VALUE:
-        raise ValueError(
-            MathAgentMessages.MATH_VALIDATION_EXCEEDS_LIMIT.format(
+        raise MathResultError(
+            message=MathAgentMessages.MATH_VALIDATION_EXCEEDS_LIMIT.format(
                 value=value, max_result_value=MAX_RESULT_VALUE
-            )
+            ),
+            value=value,
+            max_value=MAX_RESULT_VALUE,
         )
 
 
@@ -67,13 +98,16 @@ async def solve_math(query: str, llm_client: LLMClient) -> str:
         The numerical result as a string, as returned by the LLM.
 
     Raises:
-        ValueError: If the query fails to evaluate or the result is invalid.
+        MathValidationError: If the result text validation fails.
+        MathConversionError: If the result cannot be converted to a number.
+        MathResultError: If the numeric result is invalid or out of bounds.
+        MathEvaluationError: If the evaluation process fails unexpectedly.
     """
     logger.info(MathAgentMessages.MATH_EVALUATION_STARTING, query=query)
 
     try:
         raw_result = await llm_client.ask(
-            message=f"Evaluate this mathematical expression: {query}",
+            message=MathAgentMessages.MATH_LLM_QUERY.format(query=query),
             system_prompt=MATH_AGENT_SYSTEM_PROMPT,
         )
 
@@ -85,14 +119,18 @@ async def solve_math(query: str, llm_client: LLMClient) -> str:
         )
         return raw_result
 
-    except ValueError as e:
+    except (MathValidationError, MathConversionError, MathResultError) as e:
         logger.exception(
-            MathAgentMessages.MATH_VALIDATION_FAILED,
-            query=query,
-            error=str(e),
+            MathAgentMessages.MATH_VALIDATION_FAILED, query=query, error=str(e)
         )
-        raise ValueError(MathAgentMessages.MATH_VALIDATION_FAILED) from e
+        raise
 
     except Exception as e:
-        logger.exception(MathAgentMessages.MATH_EVALUATION_FAILED, query=query)
-        raise ValueError(MathAgentMessages.MATH_EVALUATION_FAILED) from e
+        logger.exception(
+            MathAgentMessages.MATH_EVALUATION_FAILED, query=query, error=str(e)
+        )
+        raise MathEvaluationError(
+            message=MathAgentMessages.MATH_EVALUATION_FAILED,
+            query=query,
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e

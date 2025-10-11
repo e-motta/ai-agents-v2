@@ -14,6 +14,7 @@ from app.agents.router_agent import (
     route_query,
 )
 from app.enums import Agents, WorkflowSignals
+from app.exceptions import RouterValidationError
 
 
 class TestValidateResponse:
@@ -121,14 +122,14 @@ class TestRouteQuery:
 
     @pytest.mark.asyncio
     async def test_route_query_empty_string_raises_error(self, mock_llm_client):
-        """Test that empty query raises ValueError."""
-        with pytest.raises(ValueError, match="Query cannot be empty"):
+        """Test that empty query raises RouterValidationError."""
+        with pytest.raises(RouterValidationError, match="Query cannot be empty"):
             await route_query("", mock_llm_client)
 
     @pytest.mark.asyncio
     async def test_route_query_whitespace_only_raises_error(self, mock_llm_client):
-        """Test that whitespace-only query raises ValueError."""
-        with pytest.raises(ValueError, match="Query cannot be empty"):
+        """Test that whitespace-only query raises RouterValidationError."""
+        with pytest.raises(RouterValidationError, match="Query cannot be empty"):
             await route_query("   ", mock_llm_client)
 
     @pytest.mark.asyncio

@@ -2,7 +2,7 @@ import errno
 import shutil
 
 import chromadb
-from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index.core import Document, StorageContext, VectorStoreIndex
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 from llama_index.core.base.response.schema import RESPONSE_TYPE
 from llama_index.core.schema import NodeWithScore
@@ -13,9 +13,27 @@ from app.core.llm import setup_knowledge_agent_settings
 from app.core.logging import get_logger
 from app.core.settings import get_settings
 from app.enums import KnowledgeAgentMessages
+from app.exceptions import (
+    KnowledgeIndexError,
+    KnowledgeQueryError,
+    KnowledgeStorageError,
+    KnowledgeValidationError,
+)
 from app.security.prompts import KNOWLEDGE_AGENT_SYSTEM_PROMPT
 
 logger = get_logger(__name__)
+
+
+def _get_crawled_documents() -> list[Document]:
+    documents = crawl_help_center()
+    if not documents:
+        logger.exception(KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR)
+        raise KnowledgeIndexError(
+            message=KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR,
+            operation="crawl_documents",
+            details={"documents_count": 0},
+        )
+    return documents
 
 
 def build_index_from_scratch() -> None:
@@ -56,21 +74,46 @@ def build_index_from_scratch() -> None:
     )
     setup_knowledge_agent_settings()
 
-    documents = crawl_help_center()
-    if not documents:
-        error_msg = KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+    try:
+        documents = _get_crawled_documents()
+    except Exception as e:
+        if isinstance(e, KnowledgeIndexError):
+            raise
+        logger.exception(KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR)
+        raise KnowledgeIndexError(
+            message=KnowledgeAgentMessages.DOCUMENTS_CREATING_ERROR,
+            operation="crawl_documents",
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e
 
-    chroma_client = chromadb.PersistentClient(path=str(vector_store_path / "chroma_db"))
-    chroma_collection = chroma_client.create_collection(collection_name)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    try:
+        chroma_client = chromadb.PersistentClient(
+            path=str(vector_store_path / "chroma_db")
+        )
+        chroma_collection = chroma_client.create_collection(collection_name)
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    except Exception as e:
+        logger.exception(KnowledgeAgentMessages.STORAGE_ERROR_CREATING)
+        raise KnowledgeStorageError(
+            message=KnowledgeAgentMessages.STORAGE_ERROR_CREATING,
+            operation="create_storage",
+            path=str(vector_store_path / "chroma_db"),
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e
 
-    index = VectorStoreIndex.from_documents(
-        documents, storage_context=storage_context, show_progress=True
-    )
-    index.storage_context.persist(persist_dir=str(vector_store_path))
+    try:
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context, show_progress=True
+        )
+        index.storage_context.persist(persist_dir=str(vector_store_path))
+    except Exception as e:
+        logger.exception(KnowledgeAgentMessages.INDEX_ERROR_CREATING)
+        raise KnowledgeIndexError(
+            message=KnowledgeAgentMessages.INDEX_ERROR_CREATING,
+            operation="build_index",
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e
 
     logger.info(
         KnowledgeAgentMessages.VECTOR_STORE_CREATED,
@@ -118,10 +161,19 @@ def get_query_engine() -> BaseQueryEngine | None:
             error=str(e),
             vector_store_path=str(vector_store_path),
         )
+        # Return None for missing vector store - this is expected behavior
         return None
 
     # Load the index from the vector store
-    index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    try:
+        index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    except Exception as e:
+        logger.warning(
+            KnowledgeAgentMessages.INDEX_ERROR_LOADING,
+            error=str(e),
+            vector_store_path=str(vector_store_path),
+        )
+        return None
 
     logger.info(
         KnowledgeAgentMessages.QUERY_ENGINE_INITIALIZED,
@@ -129,17 +181,27 @@ def get_query_engine() -> BaseQueryEngine | None:
     )
 
     # Return the configured query engine
-    return index.as_query_engine(
-        system_prompt=KNOWLEDGE_AGENT_SYSTEM_PROMPT,
-        similarity_top_k=5,
-        response_mode="compact",
-    )
+    try:
+        return index.as_query_engine(
+            system_prompt=KNOWLEDGE_AGENT_SYSTEM_PROMPT,
+            similarity_top_k=5,
+            response_mode="compact",
+        )
+    except Exception as e:
+        logger.warning(
+            KnowledgeAgentMessages.INDEX_ERROR_QUERY_ENGINE,
+            error=str(e),
+            vector_store_path=str(vector_store_path),
+        )
+        return None
 
 
 def _validate_query(query: str) -> None:
     """Validates that the query string is not empty."""
     if not query:
-        raise ValueError(KnowledgeAgentMessages.QUERY_CANNOT_BE_EMPTY)
+        raise KnowledgeValidationError(
+            message=KnowledgeAgentMessages.QUERY_CANNOT_BE_EMPTY, query=query
+        )
 
 
 def _extract_source_from_node(
@@ -210,4 +272,8 @@ async def query_knowledge(query: str, query_engine: BaseQueryEngine) -> str:
         logger.exception(
             KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED, query=query, error=str(e)
         )
-        raise ValueError(KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED) from e
+        raise KnowledgeQueryError(
+            message=KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED,
+            query=query,
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e

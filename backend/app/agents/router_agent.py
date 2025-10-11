@@ -6,7 +6,8 @@ based on the query content using an LLM classifier.
 """
 
 from app.core.logging import get_logger, log_agent_decision
-from app.enums import Agents, WorkflowSignals
+from app.enums import Agents, RouterAgentMessages, WorkflowSignals
+from app.exceptions import RouterValidationError
 from app.security.constants import SUSPICIOUS_PATTERNS
 from app.security.prompts import ROUTER_CONVERSION_PROMPT, ROUTER_SYSTEM_PROMPT
 from app.services.llm_client import LLMClient
@@ -40,7 +41,7 @@ def _validate_response(response: str) -> Agents | WorkflowSignals:
 
     # Default to Error for safety
     logger.warning(
-        "Invalid response from router",
+        RouterAgentMessages.ROUTING_INVALID_RESPONSE,
         response=response,
         default_action=WorkflowSignals.Error,
     )
@@ -62,7 +63,7 @@ def _detect_suspicious_content(query: str) -> bool:
     for pattern in SUSPICIOUS_PATTERNS:
         if pattern in query_lower:
             logger.warning(
-                "Suspicious content detected in query",
+                RouterAgentMessages.SECURITY_SUSPICIOUS_CONTENT,
                 pattern=pattern,
                 query_preview=query[:50],
             )
@@ -88,11 +89,12 @@ async def route_query(
         str: Either "MathAgent", "KnowledgeAgent", "UnsupportedLanguage", or "Error"
 
     Raises:
-        ValueError: If the query is empty or if there's an error processing the query
+        RouterValidationError: If the query is empty
     """
     if not query or not query.strip():
-        error_msg = "Query cannot be empty"
-        raise ValueError(error_msg)
+        raise RouterValidationError(
+            message=RouterAgentMessages.QUERY_CANNOT_BE_EMPTY, query=query
+        )
 
     # Clean the query
     cleaned_query = query.strip()
@@ -100,7 +102,7 @@ async def route_query(
     # Check for suspicious content
     if _detect_suspicious_content(cleaned_query):
         logger.warning(
-            "Suspicious content detected, returning KnowledgeAgent for safety",
+            RouterAgentMessages.SECURITY_SUSPICIOUS_RETURN_KNOWLEDGE,
             conversation_id=conversation_id,
             user_id=user_id,
             query_preview=cleaned_query[:100],
@@ -109,7 +111,7 @@ async def route_query(
 
     try:
         logger.info(
-            "Routing query",
+            RouterAgentMessages.ROUTING_QUERY,
             conversation_id=conversation_id,
             user_id=user_id,
             query_preview=cleaned_query[:100],
@@ -132,7 +134,7 @@ async def route_query(
 
     except Exception as e:
         logger.exception(
-            "Error routing query",
+            RouterAgentMessages.ROUTING_ERROR,
             conversation_id=conversation_id,
             user_id=user_id,
             error=str(e),
@@ -163,10 +165,11 @@ async def convert_response(
         str: The converted conversational response
 
     Raises:
-        ValueError: If the conversion fails
+        RouterConversionError: If the conversion fails
+        (though this is handled gracefully)
     """
     logger.info(
-        "Starting response conversion",
+        RouterAgentMessages.CONVERSION_STARTING,
         agent_type=agent_type,
         response_preview=agent_response[:100],
         query_preview=original_query[:100],
@@ -186,14 +189,14 @@ Please convert this agent response into a conversational format
         )
 
         if not content:
-            logger.error(
-                "Response conversion failed - no result",
+            logger.warning(
+                RouterAgentMessages.CONVERSION_FAILED_NO_RESULT,
                 agent_type=agent_type,
             )
             return agent_response
 
         logger.info(
-            "Response conversion completed",
+            RouterAgentMessages.CONVERSION_COMPLETED,
             agent_type=agent_type,
             original_response_preview=agent_response[:100],
             converted_response_preview=content[:100],
@@ -203,7 +206,7 @@ Please convert this agent response into a conversational format
 
     except Exception as e:
         logger.exception(
-            "Response conversion error",
+            RouterAgentMessages.CONVERSION_ERROR,
             agent_type=agent_type,
             error=str(e),
         )

@@ -18,6 +18,11 @@ from app.agents.knowledge_agent.main import (
     query_knowledge,
 )
 from app.enums import KnowledgeAgentMessages
+from app.exceptions import (
+    KnowledgeIndexError,
+    KnowledgeQueryError,
+    KnowledgeValidationError,
+)
 
 
 class TestBuildIndexFromScratch:
@@ -226,9 +231,10 @@ class TestBuildIndexFromScratch:
         # Mock no documents returned
         mock_crawl_help_center.return_value = []
 
-        # Call the function and expect ValueError
+        # Call the function and expect KnowledgeIndexError
         with pytest.raises(
-            ValueError, match=r"No documents were created during crawling."
+            KnowledgeIndexError,
+            match="No documents were created during crawling",
         ):
             build_index_from_scratch()
 
@@ -367,7 +373,7 @@ class TestQueryKnowledge:
         mock_query_engine = AsyncMock(spec=BaseQueryEngine)
 
         # Call the function with empty query
-        with pytest.raises(ValueError, match=r"Query cannot be empty."):
+        with pytest.raises(KnowledgeValidationError, match="Query cannot be empty"):
             await query_knowledge("", mock_query_engine)
 
     @pytest.mark.asyncio
@@ -422,7 +428,7 @@ class TestQueryKnowledge:
 
         # Call the function
         with pytest.raises(
-            ValueError, match=KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED
+            KnowledgeQueryError, match="Error querying the knowledge base"
         ):
             await query_knowledge("Test query", mock_query_engine)
 

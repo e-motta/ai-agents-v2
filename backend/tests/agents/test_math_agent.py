@@ -9,6 +9,12 @@ import pytest
 
 from app.agents.math_agent import solve_math
 from app.enums import MathAgentMessages
+from app.exceptions import (
+    MathConversionError,
+    MathEvaluationError,
+    MathResultError,
+    MathValidationError,
+)
 
 
 class TestSolveMath:
@@ -146,38 +152,44 @@ class TestSolveMath:
 
     @pytest.mark.asyncio
     async def test_solve_empty_response_raises_error(self, mock_llm_client):
-        """Test that empty LLM response raises ValueError."""
+        """Test that empty LLM response raises MathValidationError."""
         # Mock LLM response with empty content
         mock_llm_client.ask.return_value = ""
 
-        with pytest.raises(ValueError, match=MathAgentMessages.MATH_VALIDATION_FAILED):
+        with pytest.raises(
+            MathValidationError, match=MathAgentMessages.MATH_VALIDATION_ERROR
+        ):
             await solve_math("2 + 2", mock_llm_client)
 
     @pytest.mark.asyncio
     async def test_solve_error_response_raises_error(self, mock_llm_client):
-        """Test that 'Error' response raises ValueError."""
+        """Test that 'Error' response raises MathValidationError."""
         # Mock LLM response with error
         mock_llm_client.ask.return_value = "Error"
 
-        with pytest.raises(ValueError, match=MathAgentMessages.MATH_VALIDATION_FAILED):
+        with pytest.raises(
+            MathValidationError, match=MathAgentMessages.MATH_VALIDATION_ERROR
+        ):
             await solve_math("invalid expression", mock_llm_client)
 
     @pytest.mark.asyncio
     async def test_solve_non_numerical_response_raises_error(self, mock_llm_client):
-        """Test that non-numerical response raises ValueError."""
+        """Test that non-numerical response raises MathConversionError."""
         # Mock LLM response with non-numerical content
         mock_llm_client.ask.return_value = "This is not a number"
 
-        with pytest.raises(ValueError, match=MathAgentMessages.MATH_VALIDATION_FAILED):
+        with pytest.raises(MathConversionError, match="Failed to convert"):
             await solve_math("2 + 2", mock_llm_client)
 
     @pytest.mark.asyncio
     async def test_solve_llm_exception_raises_error(self, mock_llm_client):
-        """Test that LLM exceptions raise ValueError."""
+        """Test that LLM exceptions raise MathEvaluationError."""
         # Mock LLM to raise an exception
         mock_llm_client.ask.side_effect = Exception("LLM Error")
 
-        with pytest.raises(ValueError, match=MathAgentMessages.MATH_EVALUATION_FAILED):
+        with pytest.raises(
+            MathEvaluationError, match=MathAgentMessages.MATH_EVALUATION_FAILED
+        ):
             await solve_math("2 + 2", mock_llm_client)
 
     @pytest.mark.asyncio
@@ -209,3 +221,32 @@ class TestSolveMath:
         result = await solve_math("1000000 + 0.5", mock_llm_client)
         assert result == "1000000.5"
         mock_llm_client.ask.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_solve_nan_result_raises_error(self, mock_llm_client):
+        """Test that NaN results raise MathResultError."""
+        # Mock LLM response with NaN
+        mock_llm_client.ask.return_value = "NaN"
+
+        with pytest.raises(MathResultError, match="Not a Number"):
+            await solve_math("0/0", mock_llm_client)
+
+    @pytest.mark.asyncio
+    async def test_solve_result_exceeds_limit_raises_error(self, mock_llm_client):
+        """Test that results exceeding limit raise MathResultError."""
+        # Mock LLM response with very large number
+        mock_llm_client.ask.return_value = "1e20"
+
+        with pytest.raises(
+            MathResultError, match=MathAgentMessages.MATH_VALIDATION_EXCEEDS_LIMIT
+        ):
+            await solve_math("10^20", mock_llm_client)
+
+    @pytest.mark.asyncio
+    async def test_solve_invalid_float_conversion_raises_error(self, mock_llm_client):
+        """Test that invalid float conversion raises MathConversionError."""
+        # Mock LLM response with invalid float format
+        mock_llm_client.ask.return_value = "1.2.3"
+
+        with pytest.raises(MathConversionError):
+            await solve_math("invalid", mock_llm_client)
