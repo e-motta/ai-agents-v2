@@ -3,17 +3,16 @@
 import inspect
 import time
 from functools import wraps
-from typing import Any
 
 from structlog.stdlib import BoundLogger
 
 from app.core.logging import log_agent_processing
 from app.enums import Agents, SystemMessages
-from app.models import ChatRequest, WorkflowStep
+from app.models import ChatContext, WorkflowStep
 
 
 def log_process(logger: BoundLogger, agent_name: str):
-    """Decorator to handle timing, logging, and exceptions for agent processing.
+    """Decorator to handle logging for agent processing.
 
     Works for both sync and async functions.
     """
@@ -22,9 +21,11 @@ def log_process(logger: BoundLogger, agent_name: str):
         is_async = inspect.iscoroutinefunction(func)
 
         @wraps(func)
-        async def async_wrapper(context: dict[str, Any]):
-            payload: ChatRequest = context["payload"]
+        async def async_wrapper(context: ChatContext):
             start_time = time.time()
+            execution_time: float | None = None
+
+            payload = context.payload
             query_preview = payload.message[:100]
             final_response, workflow_step = None, None
 
@@ -46,7 +47,7 @@ def log_process(logger: BoundLogger, agent_name: str):
             except Exception as e:
                 execution_time = time.time() - start_time
                 logger.exception(
-                    "%s processing failed",
+                    "%s Processing failed",
                     agent_name,
                     conversation_id=payload.conversation_id,
                     user_id=payload.user_id,

@@ -9,7 +9,7 @@ import logging
 import sys
 from collections.abc import MutableMapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from structlog.stdlib import LoggerFactory
@@ -55,19 +55,14 @@ def configure_logging() -> None:
     - Agent-specific fields: decision (RouterAgent) or processed_content (other agents)
     - Execution time tracking
     """
-
     # Configure structlog processors
     structlog.configure(
         processors=[
-            # Add timestamp
             add_timestamp,
-            # Add agent context
             add_agent_context,
-            # Add log level
             structlog.stdlib.add_log_level,
-            # Add logger name
             structlog.stdlib.add_logger_name,
-            # Format as JSON
+            structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -93,7 +88,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         Configured structlog logger
     """
-    return structlog.get_logger(name)  # type: ignore[no-any-return]
+    return cast("structlog.stdlib.BoundLogger", structlog.get_logger(name))
 
 
 def log_agent_decision(

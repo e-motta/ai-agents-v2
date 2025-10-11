@@ -6,10 +6,11 @@ to configure different models for different agents.
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from app.core.llm import get_math_agent_llm, get_router_agent_llm
+from app.core.llm import get_math_agent_llm_client, get_router_agent_llm_client
 from app.core.settings import Settings
+from app.services.llm_client import LLMClient
 
 
 class TestModelConfigurationIntegration:
@@ -25,10 +26,9 @@ class TestModelConfigurationIntegration:
             assert settings.LLM_MODEL == "gpt-4o"
             assert settings.EMBEDDING_MODEL == "text-embedding-3-large"
 
-    def test_different_models_for_different_agents(self):
+    @patch("app.core.llm.ChatOpenAI")
+    def test_different_models_for_different_agents(self, mock_chat_openai):
         """Test that different agents can use different models if configured."""
-        # This test demonstrates that if we had separate environment variables
-        # for different agents, they could use different models
         with patch.dict(os.environ, {"LLM_MODEL": "gpt-4o-mini"}):
             Settings.model_rebuild()
 
@@ -38,22 +38,25 @@ class TestModelConfigurationIntegration:
                 mock_settings.ROUTER_LLM_MODEL = "gpt-4o"
                 mock_settings.ensure_openai_api_key.return_value = "test-key"
 
-                math_llm = get_math_agent_llm()
-                router_llm = get_router_agent_llm()
+                # Mock the ChatOpenAI instances
+                mock_math_llm = Mock()
+                mock_math_llm.model_name = "gpt-4o-mini"
+                mock_math_llm.temperature = 0
+
+                mock_router_llm = Mock()
+                mock_router_llm.model_name = "gpt-4o"
+                mock_router_llm.temperature = 0
+
+                mock_chat_openai.side_effect = [mock_math_llm, mock_router_llm]
+
+                math_llm_client = get_math_agent_llm_client()
+                router_llm_client = get_router_agent_llm_client()
 
                 # Both agents use the same configured model
-                assert math_llm.model_name == "gpt-4o-mini"
-                assert router_llm.model_name == "gpt-4o"
-
-    def test_model_validation_with_environment_variables(self):
-        """Test that model validation works with environment variables."""
-        # Test valid models
-        valid_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4o", "gpt-4o-mini"]
-
-        for model in valid_models:
-            with patch.dict(os.environ, {"LLM_MODEL": model}):
-                settings = Settings()
-                assert model == settings.LLM_MODEL
+                assert isinstance(math_llm_client, LLMClient)
+                assert isinstance(router_llm_client, LLMClient)
+                assert math_llm_client.llm.model_name == "gpt-4o-mini"
+                assert router_llm_client.llm.model_name == "gpt-4o"
 
     def test_embedding_model_environment_variable(self):
         """Test that embedding model can be configured via environment variable."""

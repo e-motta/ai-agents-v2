@@ -1,10 +1,21 @@
+from llama_index.core.base.base_query_engine import BaseQueryEngine
 from pydantic import BaseModel
+
+from app.services.llm_client import LLMClient
 
 
 class ChatRequest(BaseModel):
     message: str
     user_id: str
     conversation_id: str
+
+
+class ChatContext(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    payload: ChatRequest
+    sanitized_message: str
+    llm_client: LLMClient
+    knowledge_engine: BaseQueryEngine | None
 
 
 class WorkflowStep(BaseModel):

@@ -1,10 +1,9 @@
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import cast
 
 from fastapi import APIRouter, Depends
-from langchain_openai.chat_models.base import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from app.agents.knowledge_agent import query_knowledge
@@ -25,7 +24,8 @@ from app.dependencies import (
     get_router_llm,
 )
 from app.enums import Agents, KnowledgeAgentMessages, SystemMessages, WorkflowSignals
-from app.models import ChatRequest, ChatResponse, WorkflowStep
+from app.models import ChatContext, ChatRequest, ChatResponse, WorkflowStep
+from app.services.llm_client import LLMClient
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -33,9 +33,9 @@ logger = get_logger(__name__)
 
 @handle_process_exception(Agents.MathAgent, "process_math")
 @log_process(logger, Agents.MathAgent)
-async def _process_math(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
+async def _process_math(context: ChatContext) -> tuple[str, WorkflowStep]:
     """Handle MathAgent flow."""
-    final_response = await solve_math(context["sanitized_message"], context["math_llm"])
+    final_response = await solve_math(context.sanitized_message, context.llm_client)
     return final_response, WorkflowStep(
         agent=Agents.MathAgent, action="process_math", result=final_response
     )
@@ -43,17 +43,15 @@ async def _process_math(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
 
 @handle_process_exception(Agents.KnowledgeAgent, "process_knowledge")
 @log_process(logger, Agents.KnowledgeAgent)
-async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
+async def _process_knowledge(context: ChatContext) -> tuple[str, WorkflowStep]:
     """Handle KnowledgeAgent flow."""
-    knowledge_engine = context["knowledge_engine"]
+    knowledge_engine = context.knowledge_engine
     if knowledge_engine is None:
         raise create_service_unavailable_error(
             service_name="Knowledge Base",
             details=KnowledgeAgentMessages.KNOWLEDGE_BASE_UNAVAILABLE,
         )
-    final_response = await query_knowledge(
-        context["sanitized_message"], knowledge_engine
-    )
+    final_response = await query_knowledge(context.sanitized_message, knowledge_engine)
     return final_response, WorkflowStep(
         agent=Agents.KnowledgeAgent,
         action="process_knowledge",
@@ -62,7 +60,7 @@ async def _process_knowledge(context: dict[str, Any]) -> tuple[str, WorkflowStep
 
 
 @log_process(logger, "UnsupportedLanguage")
-def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
+def _process_unsupported_language(_: ChatContext) -> tuple[str, WorkflowStep]:
     """Handle unsupported language decision."""
     return SystemMessages.UNSUPPORTED_LANGUAGE, WorkflowStep(
         agent="System", action="reject", result=str(WorkflowSignals.UnsupportedLanguage)
@@ -70,18 +68,18 @@ def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, Workflo
 
 
 @log_process(logger, "Error")
-def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:  # noqa: ARG001
+def _process_error(_: ChatContext) -> tuple[str, WorkflowStep]:
     """Handle generic error decision."""
     return SystemMessages.GENERIC_ERROR, WorkflowStep(
         agent="System", action="error", result=str(WorkflowSignals.Error)
     )
 
 
+SyncChatHandler = Callable[[ChatContext], tuple[str, WorkflowStep]]
+AsyncChatHandler = Callable[[ChatContext], Awaitable[tuple[str, WorkflowStep]]]
+
 HANDLER_BY_DECISION: dict[
-    Agents | WorkflowSignals,
-    Callable[
-        [dict[str, Any]], Awaitable[tuple[str, WorkflowStep]] | tuple[str, WorkflowStep]
-    ],
+    Agents | WorkflowSignals, SyncChatHandler | AsyncChatHandler
 ] = {
     Agents.MathAgent: _process_math,
     Agents.KnowledgeAgent: _process_knowledge,
@@ -140,8 +138,8 @@ async def chat(
     payload: ChatRequest,
     sanitized_message: SanitizedMessage,
     redis_service: RedisServiceDep,
-    router_llm: ChatOpenAI = Depends(get_router_llm),
-    math_llm: ChatOpenAI = Depends(get_math_llm),
+    router_llm: LLMClient = Depends(get_router_llm),
+    math_llm: LLMClient = Depends(get_math_llm),
     knowledge_engine: BaseQueryEngine | None = Depends(get_knowledge_engine),
 ) -> ChatResponse:
     start_time = time.time()
@@ -159,7 +157,7 @@ async def chat(
     try:
         decision = await route_query(
             sanitized_message,
-            llm=router_llm,
+            llm_client=router_llm,
             conversation_id=payload.conversation_id,
             user_id=payload.user_id,
         )
@@ -176,17 +174,19 @@ async def chat(
         WorkflowStep(agent="RouterAgent", action="route_query", result=str(decision))
     ]
 
-    context = {
-        "payload": payload,
-        "sanitized_message": sanitized_message,
-        "math_llm": math_llm,
-        "knowledge_engine": knowledge_engine,
-    }
-    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore[call-overload]
+    context = ChatContext(
+        payload=payload,
+        sanitized_message=sanitized_message,
+        llm_client=math_llm,
+        knowledge_engine=knowledge_engine,
+    )
+    handler = HANDLER_BY_DECISION.get(decision, _process_error)
 
     if asyncio.iscoroutinefunction(handler):
+        handler = cast("AsyncChatHandler", handler)
         source_agent_response, step = await handler(context)
     else:
+        handler = cast("SyncChatHandler", handler)
         source_agent_response, step = handler(context)
 
     agent_workflow.append(step)
@@ -197,7 +197,7 @@ async def chat(
                 original_query=sanitized_message,
                 agent_response=source_agent_response,
                 agent_type=str(decision),
-                llm=router_llm,
+                llm_client=router_llm,
             )
         else:
             final_response = source_agent_response

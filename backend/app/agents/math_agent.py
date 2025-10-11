@@ -4,31 +4,15 @@ Math Agent module for solving mathematical expressions using LangChain.
 
 import math
 import re
-from typing import cast
-
-from langchain.schema.messages import (
-    AIMessage,
-    HumanMessage,
-    SystemMessage,
-)
-from langchain_openai import ChatOpenAI
 
 from app.core.logging import get_logger
 from app.enums import MathAgentMessages
 from app.security.prompts import MATH_AGENT_SYSTEM_PROMPT
+from app.services.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
 MAX_RESULT_VALUE = 1e10
-
-
-def _parse_llm_content(content: str | list) -> str:
-    """
-    Parse the content of a LangChain AIMessage into a single, clean string.
-    """
-    if isinstance(content, list):
-        return " ".join(str(item) for item in content).strip()
-    return content.strip()
 
 
 def _clean_and_convert_to_float(result_text: str) -> float:
@@ -71,13 +55,13 @@ def _validate_numeric_result(value: float) -> None:
         )
 
 
-async def solve_math(query: str, llm: ChatOpenAI) -> str:
+async def solve_math(query: str, llm_client: LLMClient) -> str:
     """
     Solve a mathematical expression using an LLM-based calculator.
 
     Args:
         query: The mathematical expression to evaluate.
-        llm: The LangChain LLM instance to use for calculations.
+        llm_client: LLMClient instance to use for calculations.
 
     Returns:
         The numerical result as a string, as returned by the LLM.
@@ -87,14 +71,11 @@ async def solve_math(query: str, llm: ChatOpenAI) -> str:
     """
     logger.info(MathAgentMessages.MATH_EVALUATION_STARTING, query=query)
 
-    messages = [
-        SystemMessage(content=MATH_AGENT_SYSTEM_PROMPT),
-        HumanMessage(content=f"Evaluate this mathematical expression: {query}"),
-    ]
-
     try:
-        response = cast("AIMessage", await llm.ainvoke(messages))
-        raw_result = _parse_llm_content(response.content)
+        raw_result = await llm_client.ask(
+            message=f"Evaluate this mathematical expression: {query}",
+            system_prompt=MATH_AGENT_SYSTEM_PROMPT,
+        )
 
         numeric_value = _clean_and_convert_to_float(raw_result)
         _validate_numeric_result(numeric_value)
