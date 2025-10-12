@@ -5,19 +5,17 @@ This module provides a function to route user queries to the appropriate agent
 based on the query content using an LLM classifier.
 """
 
-import time
-
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-
 from app.core.logging import get_logger, log_agent_decision
-from app.enums import ResponseEnum
+from app.enums import Agents, RouterAgentMessages, WorkflowSignals
+from app.exceptions import RouterValidationError
+from app.security.constants import SUSPICIOUS_PATTERNS
 from app.security.prompts import ROUTER_CONVERSION_PROMPT, ROUTER_SYSTEM_PROMPT
+from app.services.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
 
-def _validate_response(response: str) -> str:
+def _validate_response(response: str) -> Agents | WorkflowSignals:
     """
     Validate and clean the LLM response.
 
@@ -28,26 +26,26 @@ def _validate_response(response: str) -> str:
         Cleaned response
         ("MathAgent", "KnowledgeAgent", "UnsupportedLanguage", or "Error")
     """
-    # Clean the response
     cleaned_response = response.strip().lower()
 
-    # Mapping of keywords to canonical agent names
-    response_map = {
-        "mathagent": ResponseEnum.MathAgent,
-        "knowledgeagent": ResponseEnum.KnowledgeAgent,
-        "unsupportedlanguage": ResponseEnum.UnsupportedLanguage,
-        "error": ResponseEnum.Error,
-    }
+    canonical_responses: list[Agents | WorkflowSignals] = [
+        Agents.MathAgent,
+        Agents.KnowledgeAgent,
+        WorkflowSignals.UnsupportedLanguage,
+        WorkflowSignals.Error,
+    ]
 
-    for key, value in response_map.items():
-        if key in cleaned_response:
-            return value
+    for r in canonical_responses:
+        if r.lower() in cleaned_response.lower():
+            return r
 
     # Default to Error for safety
     logger.warning(
-        "Invalid response from router", response=response, default_action="Error"
+        RouterAgentMessages.ROUTING_INVALID_RESPONSE,
+        response=response,
+        default_action=WorkflowSignals.Error,
     )
-    return ResponseEnum.Error
+    return WorkflowSignals.Error
 
 
 def _detect_suspicious_content(query: str) -> bool:
@@ -60,56 +58,12 @@ def _detect_suspicious_content(query: str) -> bool:
     Returns:
         True if suspicious content is detected, False otherwise
     """
-    suspicious_patterns = [
-        "ignore previous instructions",
-        "forget everything",
-        "system prompt",
-        "you are now",
-        "act as",
-        "pretend to be",
-        "roleplay",
-        "jailbreak",
-        "developer mode",
-        "admin mode",
-        "override",
-        "bypass",
-        "exploit",
-        "hack",
-        "inject",
-        "execute",
-        "run command",
-        "system call",
-        "file://",
-        "http://",
-        "https://",
-        "<script>",
-        "javascript:",
-        "data:",
-        "eval(",
-        "exec(",
-        "import os",
-        "subprocess",
-        "shell",
-        "terminal",
-        "command line",
-        "prompt injection",
-        "llm injection",
-        # Portuguese patterns
-        "ignore as instruções anteriores",
-        "esqueça tudo",
-        "prompt do sistema",
-        "você agora é",
-        "aja como",
-        "finja ser",
-        "interprete o papel de",
-    ]
-
     query_lower = query.lower()
 
-    for pattern in suspicious_patterns:
+    for pattern in SUSPICIOUS_PATTERNS:
         if pattern in query_lower:
             logger.warning(
-                "Suspicious content detected in query",
+                RouterAgentMessages.SECURITY_SUSPICIOUS_CONTENT,
                 pattern=pattern,
                 query_preview=query[:50],
             )
@@ -120,26 +74,27 @@ def _detect_suspicious_content(query: str) -> bool:
 
 async def route_query(
     query: str,
-    llm: ChatOpenAI,
+    llm_client: LLMClient,
     conversation_id: str | None = None,
     user_id: str | None = None,
-) -> str:
+) -> Agents | WorkflowSignals:
     """
     Route a user query to the appropriate agent or return error status.
 
     Args:
         query: The user's query string
-        llm: ChatOpenAI LLM instance to use for routing
+        llm_client: LLMClient instance to use for routing
 
     Returns:
         str: Either "MathAgent", "KnowledgeAgent", "UnsupportedLanguage", or "Error"
 
     Raises:
-        ValueError: If the query is empty or if there's an error processing the query
+        RouterValidationError: If the query is empty
     """
     if not query or not query.strip():
-        error_msg = "Query cannot be empty"
-        raise ValueError(error_msg)
+        raise RouterValidationError(
+            message=RouterAgentMessages.QUERY_CANNOT_BE_EMPTY, query=query
+        )
 
     # Clean the query
     cleaned_query = query.strip()
@@ -147,71 +102,53 @@ async def route_query(
     # Check for suspicious content
     if _detect_suspicious_content(cleaned_query):
         logger.warning(
-            "Suspicious content detected, returning KnowledgeAgent for safety",
+            RouterAgentMessages.SECURITY_SUSPICIOUS_RETURN_KNOWLEDGE,
             conversation_id=conversation_id,
             user_id=user_id,
             query_preview=cleaned_query[:100],
         )
-        return ResponseEnum.KnowledgeAgent
+        return Agents.KnowledgeAgent
 
-    start_time = time.time()
     try:
         logger.info(
-            "Routing query",
+            RouterAgentMessages.ROUTING_QUERY,
             conversation_id=conversation_id,
             user_id=user_id,
             query_preview=cleaned_query[:100],
         )
 
-        # Create messages
-        messages = [
-            SystemMessage(content=ROUTER_SYSTEM_PROMPT),
-            HumanMessage(content=f'Query: "{cleaned_query}"'),
-        ]
+        content = await llm_client.ask(
+            message=cleaned_query,
+            system_prompt=ROUTER_SYSTEM_PROMPT,
+        )
 
-        # Get response from LLM asynchronously
-        response = await llm.ainvoke(messages)
-
-        # Handle different response formats
-        if isinstance(response.content, list):
-            response_text = " ".join(str(item) for item in response.content).strip()
-        else:
-            response_text = response.content.strip()
-
-        execution_time = time.time() - start_time
-
-        # Log the decision with structured fields
         log_agent_decision(
             logger=logger,
             conversation_id=conversation_id or "unknown",
             user_id=user_id or "unknown",
-            decision=response_text,
-            execution_time=execution_time,
+            decision=content,
             query_preview=cleaned_query[:100],
         )
 
-        # Validate and return the cleaned response
-        return _validate_response(response_text)
+        return _validate_response(content)
 
     except Exception as e:
-        execution_time = time.time() - start_time
         logger.exception(
-            "Error routing query",
+            RouterAgentMessages.ROUTING_ERROR,
             conversation_id=conversation_id,
             user_id=user_id,
             error=str(e),
-            execution_time=execution_time,
             query_preview=cleaned_query[:100],
         )
         # Default to Error for safety
-        return ResponseEnum.Error
+        return WorkflowSignals.Error
 
 
 async def convert_response(
     original_query: str,
     agent_response: str,
     agent_type: str,
-    llm: ChatOpenAI,
+    llm_client: LLMClient,
 ) -> str:
     """
     Convert raw agent response into conversational format
@@ -222,77 +159,56 @@ async def convert_response(
         agent_response: The raw response from the specialized agent
         agent_type: The type of agent that generated
             the response (MathAgent or KnowledgeAgent)
-        llm: ChatOpenAI LLM instance to use for conversion
+        llm_client: LLMClient instance to use for conversion
 
     Returns:
         str: The converted conversational response
 
     Raises:
-        ValueError: If the conversion fails
+        RouterConversionError: If the conversion fails
+        (though this is handled gracefully)
     """
-    start_time = time.time()
-
     logger.info(
-        "Starting response conversion",
+        RouterAgentMessages.CONVERSION_STARTING,
         agent_type=agent_type,
         response_preview=agent_response[:100],
         query_preview=original_query[:100],
     )
 
     try:
-        # Create messages for conversion
-        messages = [
-            SystemMessage(content=ROUTER_CONVERSION_PROMPT),
-            HumanMessage(
-                content=f"""Original Query: "{original_query}"
+        message = f"""Original Query: "{original_query}"
 Agent Type: {agent_type}
 Agent Response: "{agent_response}"
 
 Please convert this agent response into a conversational format
  while preserving all factual accuracy."""
-            ),
-        ]
 
-        # Get response from LLM asynchronously
-        response = await llm.ainvoke(messages)
+        content = await llm_client.ask(
+            message=message,
+            system_prompt=ROUTER_CONVERSION_PROMPT,
+        )
 
-        # Handle different response formats
-        if isinstance(response.content, list):
-            converted_response = " ".join(
-                str(item) for item in response.content
-            ).strip()
-        else:
-            converted_response = response.content.strip()
-
-        execution_time = time.time() - start_time
-
-        # Validate that we got a reasonable response
-        if not converted_response:
-            logger.error(
-                "Response conversion failed - no result",
+        if not content:
+            logger.warning(
+                RouterAgentMessages.CONVERSION_FAILED_NO_RESULT,
                 agent_type=agent_type,
-                execution_time=execution_time,
             )
-            # Fallback to original response if conversion fails
             return agent_response
 
         logger.info(
-            "Response conversion completed",
+            RouterAgentMessages.CONVERSION_COMPLETED,
             agent_type=agent_type,
             original_response_preview=agent_response[:100],
-            converted_response_preview=converted_response[:100],
-            execution_time=execution_time,
+            converted_response_preview=content[:100],
         )
 
-        return converted_response
+        return content
 
     except Exception as e:
-        execution_time = time.time() - start_time
         logger.exception(
-            "Response conversion error",
+            RouterAgentMessages.CONVERSION_ERROR,
             agent_type=agent_type,
             error=str(e),
-            execution_time=execution_time,
         )
         # Fallback to original response if conversion fails
         return agent_response

@@ -17,6 +17,7 @@ from app.agents.knowledge_agent.scraping import (
     _scrape_page_content,
     crawl_help_center,
 )
+from app.exceptions import KnowledgeScrapingError
 
 
 class TestScrapePageContent:
@@ -134,8 +135,8 @@ class TestScrapePageContent:
         mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
         mock_get.return_value = mock_response
 
-        # Call the function and expect exception
-        with pytest.raises(requests.HTTPError):
+        # Call the function and expect KnowledgeScrapingError
+        with pytest.raises(KnowledgeScrapingError):
             _scrape_page_content("http://test.com")
 
     @patch("app.agents.knowledge_agent.scraping.get_settings")
@@ -150,8 +151,8 @@ class TestScrapePageContent:
         # Mock connection error
         mock_get.side_effect = requests.ConnectionError("Connection failed")
 
-        # Call the function and expect exception
-        with pytest.raises(requests.ConnectionError):
+        # Call the function and expect KnowledgeScrapingError
+        with pytest.raises(KnowledgeScrapingError):
             _scrape_page_content("http://test.com")
 
 
@@ -473,8 +474,8 @@ class TestCrawlHelpCenter:
         # Mock collection finding error
         mock_find_collection_links.side_effect = Exception("Collection finding failed")
 
-        # Call the function and expect exception
-        with pytest.raises(Exception, match="Collection finding failed"):
+        # Call the function and expect KnowledgeScrapingError
+        with pytest.raises(KnowledgeScrapingError, match="Error during crawling"):
             crawl_help_center()
 
     @patch("app.agents.knowledge_agent.scraping.get_settings")

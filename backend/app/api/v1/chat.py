@@ -1,22 +1,10 @@
-import asyncio
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any
 
 from fastapi import APIRouter, Depends
-from langchain_openai.chat_models.base import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.agents.knowledge_agent import query_knowledge
-from app.agents.math_agent import solve_math
-from app.agents.router_agent import convert_response, route_query
-from app.core.decorators import log_and_handle_agent_errors
-from app.core.error_handling import (
-    create_redis_error,
-    create_service_unavailable_error,
-    create_validation_error,
-)
-from app.core.logging import get_logger, log_system_event
+from app.core.error_handling import create_redis_error, create_validation_error
+from app.core.logging import get_logger
 from app.dependencies import (
     RedisServiceDep,
     SanitizedMessage,
@@ -24,72 +12,13 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import ErrorMessage, ResponseEnum
-from app.models import ChatRequest, ChatResponse, WorkflowStep
+from app.enums import Agents, WorkflowSignals
+from app.schemas import ChatRequest, ChatResponse, ProcessingContext, RoutingContext
+from app.services.chat_dispatcher import dispatch_chat_workflow
+from app.services.llm_client import LLMClient
 
 router = APIRouter()
 logger = get_logger(__name__)
-
-
-@log_and_handle_agent_errors(logger, agent_name="MathAgent", error_status_code=400)
-async def _process_math(context: dict[str, Any]) -> str:
-    """Handle MathAgent flow."""
-    return await solve_math(context["sanitized_message"], context["math_llm"])
-
-
-@log_and_handle_agent_errors(logger, agent_name="KnowledgeAgent", error_status_code=400)
-async def _process_knowledge(context: dict[str, Any]) -> str:
-    """Handle KnowledgeAgent flow."""
-    knowledge_engine = context["knowledge_engine"]
-    if knowledge_engine is None:
-        raise create_service_unavailable_error(
-            service_name="Knowledge Base",
-            details=ErrorMessage.KNOWLEDGE_BASE_UNAVAILABLE,
-        )
-    return await query_knowledge(context["sanitized_message"], knowledge_engine)
-
-
-def _process_unsupported_language(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
-    """Handle unsupported language decision."""
-    payload = context["payload"]
-    final_response = ErrorMessage.UNSUPPORTED_LANGUAGE
-    log_system_event(
-        logger=logger,
-        event="unsupported_language_rejected",
-        conversation_id=payload.conversation_id,
-        user_id=payload.user_id,
-    )
-    return final_response, WorkflowStep(
-        agent="System", action="reject", result=str(ResponseEnum.UnsupportedLanguage)
-    )
-
-
-def _process_error(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
-    """Handle generic error decision."""
-    payload = context["payload"]
-    final_response = ErrorMessage.GENERIC_ERROR
-    log_system_event(
-        logger=logger,
-        event="error_processing_request",
-        conversation_id=payload.conversation_id,
-        user_id=payload.user_id,
-    )
-    return final_response, WorkflowStep(
-        agent="System", action="error", result=str(ResponseEnum.Error)
-    )
-
-
-HANDLER_BY_DECISION: dict[
-    ResponseEnum,
-    Callable[
-        [dict[str, Any]], Awaitable[tuple[str, WorkflowStep]] | tuple[str, WorkflowStep]
-    ],
-] = {
-    ResponseEnum.MathAgent: _process_math,
-    ResponseEnum.KnowledgeAgent: _process_knowledge,
-    ResponseEnum.UnsupportedLanguage: _process_unsupported_language,
-    ResponseEnum.Error: _process_error,
-}
 
 
 def _save_conversation_to_redis(
@@ -142,8 +71,8 @@ async def chat(
     payload: ChatRequest,
     sanitized_message: SanitizedMessage,
     redis_service: RedisServiceDep,
-    router_llm: ChatOpenAI = Depends(get_router_llm),
-    math_llm: ChatOpenAI = Depends(get_math_llm),
+    router_llm: LLMClient = Depends(get_router_llm),
+    math_llm: LLMClient = Depends(get_math_llm),
     knowledge_engine: BaseQueryEngine | None = Depends(get_knowledge_engine),
 ) -> ChatResponse:
     start_time = time.time()
@@ -158,59 +87,30 @@ async def chat(
         message_preview=sanitized_message[:100],
     )
 
-    try:
-        decision = await route_query(
-            sanitized_message,
-            llm=router_llm,
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-        )
-    except Exception as e:
-        logger.exception(
-            "Router agent failed",
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-            error=str(e),
-        )
-        decision = ResponseEnum.Error
+    routing_context = RoutingContext(
+        payload=payload,
+        sanitized_message=sanitized_message,
+        llm_client=router_llm,
+    )
+    decision, step = await dispatch_chat_workflow(Agents.RouterAgent, routing_context)
+    workflow_history = [step]
 
-    agent_workflow: list[WorkflowStep] = [
-        WorkflowStep(agent="RouterAgent", action="route_query", result=str(decision))
-    ]
+    processing_context = ProcessingContext(
+        payload=payload,
+        sanitized_message=sanitized_message,
+        llm_client=math_llm,
+        knowledge_engine=knowledge_engine,
+    )
+    agent_response, step = await dispatch_chat_workflow(decision, processing_context)
+    workflow_history.append(step)
 
-    context = {
-        "payload": payload,
-        "sanitized_message": sanitized_message,
-        "math_llm": math_llm,
-        "knowledge_engine": knowledge_engine,
-    }
-    handler = HANDLER_BY_DECISION.get(decision, _process_error)  # type: ignore[call-overload]
-
-    if asyncio.iscoroutinefunction(handler):
-        source_agent_response, step = await handler(context)
-    else:
-        source_agent_response, step = handler(context)
-
-    agent_workflow.append(step)
-
-    try:
-        if decision in [ResponseEnum.MathAgent]:
-            final_response = await convert_response(
-                original_query=sanitized_message,
-                agent_response=source_agent_response,
-                agent_type=str(decision),
-                llm=router_llm,
-            )
-        else:
-            final_response = source_agent_response
-    except Exception as e:
-        logger.exception(
-            "Response conversion failed, using original response",
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-            error=str(e),
-        )
-        final_response = source_agent_response
+    conversion_context = routing_context.model_copy(
+        update={"agent_response": agent_response, "agent_type": str(decision)}
+    )
+    final_response, step = await dispatch_chat_workflow(
+        WorkflowSignals.ResponseConversion, conversion_context
+    )
+    workflow_history.append(step)
 
     total_execution_time = time.time() - start_time
     logger.info(
@@ -220,6 +120,7 @@ async def chat(
         router_decision=str(decision),
         execution_time=total_execution_time,
         response_preview=final_response[:100],
+        workflow_history=[s.model_dump() for s in workflow_history],
     )
 
     _save_conversation_to_redis(
@@ -227,7 +128,7 @@ async def chat(
         payload.conversation_id,
         payload.user_id,
         sanitized_message,
-        source_agent_response,
+        agent_response,
         str(decision),
     )
 
@@ -236,8 +137,8 @@ async def chat(
         conversation_id=payload.conversation_id,
         router_decision=str(decision),
         response=final_response,
-        source_agent_response=source_agent_response,
-        agent_workflow=agent_workflow,
+        source_agent_response=agent_response,
+        workflow_history=workflow_history,
     )
 
 

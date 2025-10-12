@@ -3,100 +3,134 @@ Math Agent module for solving mathematical expressions using LangChain.
 """
 
 import math
-import time
-
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+import re
 
 from app.core.logging import get_logger
-from app.enums import ErrorMessage
+from app.enums import MathAgentMessages
+from app.exceptions import (
+    MathConversionError,
+    MathEvaluationError,
+    MathResultError,
+    MathValidationError,
+)
 from app.security.prompts import MATH_AGENT_SYSTEM_PROMPT
+from app.services.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
-
-def _validate_math_response(result: str, query: str, execution_time: float) -> None:
-    if not result or result.lower() == "error":
-        logger.error(
-            "Math evaluation failed - no result",
-            query=query,
-            execution_time=execution_time,
-        )
-        error_msg = f"{ErrorMessage.MATH_EVALUATION_FAILED}: {query}"
-        raise ValueError(error_msg)
-
-    try:
-        result_float = float(result)
-        MAX_RESULT_VALUE = 1e10  # Prevent overflow
-        if abs(result_float) > MAX_RESULT_VALUE:
-            error_msg = f"Result too large: {result}"
-            raise ValueError(error_msg)  # noqa: TRY301
-        if math.isnan(result_float):
-            error_msg = f"Invalid result: {result}"
-            raise ValueError(error_msg)  # noqa: TRY301
-    except ValueError:
-        logger.exception(
-            "Math evaluation failed - non-numerical or invalid result",
-            query=query,
-            result=result,
-            execution_time=execution_time,
-        )
-        error_msg = f"{ErrorMessage.MATH_NON_NUMERICAL_RESULT}: '{result}'"
-        raise ValueError(error_msg) from None
+MAX_RESULT_VALUE = 1e10
 
 
-async def solve_math(query: str, llm: ChatOpenAI) -> str:
+def _clean_and_convert_to_float(result_text: str) -> float:
     """
-    Solve a mathematical expression using an LLM calculator.
-
-    Args:
-        query (str): The mathematical expression to evaluate
-        llm (ChatOpenAI): The LLM instance to use for calculations
-
-    Returns:
-        str: The numerical result as a string
+    Clean a string to keep only numeric characters and convert it to a float.
 
     Raises:
-        ValueError: If the query cannot be evaluated
+        MathValidationError: If the result text is empty or explicitly an error.
+        MathConversionError: If the cleaned string cannot be converted to a valid float.
     """
-    start_time = time.time()
+    if not result_text or result_text.lower() == "error":
+        raise MathValidationError(
+            message=MathAgentMessages.MATH_VALIDATION_ERROR, result_text=result_text
+        )
 
-    logger.info("Starting math evaluation", query=query, query_preview=query[:50])
+    # Handle special cases like NaN, inf, -inf before cleaning
+    result_lower = result_text.lower().strip()
+    if result_lower in {"nan", "inf", "-inf", "infinity", "-infinity"}:
+        try:
+            return float(result_lower)
+        except ValueError:
+            pass
 
-    # Create messages
-    messages = [
-        SystemMessage(content=MATH_AGENT_SYSTEM_PROMPT),
-        HumanMessage(content=f"Evaluate this mathematical expression: {query}"),
-    ]
+    cleaned_text = re.sub(r"[^0-9.\-eE]", "", result_text)
+    if cleaned_text in {"", "-", "."}:
+        raise MathConversionError(
+            message=MathAgentMessages.MATH_VALIDATION_NO_NUMERIC_DATA.format(
+                result_text=result_text
+            ),
+            input_text=result_text,
+        )
 
     try:
-        # Get response from LLM asynchronously
-        response = await llm.ainvoke(messages)
-        # Handle different response formats
-        if isinstance(response.content, list):
-            result = " ".join(str(item) for item in response.content).strip()
-        else:
-            result = response.content.strip()
+        return float(cleaned_text)
+    except ValueError as e:
+        raise MathConversionError(
+            message=MathAgentMessages.MATH_CONVERSION_FAILED.format(
+                cleaned_text=cleaned_text, error=str(e)
+            ),
+            input_text=result_text,
+            details={"cleaned_text": cleaned_text, "original_error": str(e)},
+        ) from e
 
-        execution_time = time.time() - start_time
 
-        _validate_math_response(result, query, execution_time)
+def _validate_numeric_result(value: float) -> None:
+    """
+    Validate that a numeric result is within acceptable boundaries
+    (e.g., not NaN or too large).
+
+    Raises:
+        MathResultError: If the number is outside the defined limits.
+    """
+    if math.isnan(value):
+        raise MathResultError(
+            message=MathAgentMessages.MATH_VALIDATION_NAN, value=value
+        )
+
+    if abs(value) > MAX_RESULT_VALUE:
+        raise MathResultError(
+            message=MathAgentMessages.MATH_VALIDATION_EXCEEDS_LIMIT.format(
+                value=value, max_result_value=MAX_RESULT_VALUE
+            ),
+            value=value,
+            max_value=MAX_RESULT_VALUE,
+        )
+
+
+async def solve_math(query: str, llm_client: LLMClient) -> str:
+    """
+    Solve a mathematical expression using an LLM-based calculator.
+
+    Args:
+        query: The mathematical expression to evaluate.
+        llm_client: LLMClient instance to use for calculations.
+
+    Returns:
+        The numerical result as a string, as returned by the LLM.
+
+    Raises:
+        MathValidationError: If the result text validation fails.
+        MathConversionError: If the result cannot be converted to a number.
+        MathResultError: If the numeric result is invalid or out of bounds.
+        MathEvaluationError: If the evaluation process fails unexpectedly.
+    """
+    logger.info(MathAgentMessages.MATH_EVALUATION_STARTING, query=query)
+
+    try:
+        raw_result = await llm_client.ask(
+            message=MathAgentMessages.MATH_LLM_QUERY.format(query=query),
+            system_prompt=MATH_AGENT_SYSTEM_PROMPT,
+        )
+
+        numeric_value = _clean_and_convert_to_float(raw_result)
+        _validate_numeric_result(numeric_value)
 
         logger.info(
-            "Math evaluation completed",
-            query=query,
-            result=result,
-            execution_time=execution_time,
+            MathAgentMessages.MATH_EVALUATION_COMPLETED, query=query, result=raw_result
         )
+        return raw_result
 
-        return result
-    except Exception as e:
-        execution_time = time.time() - start_time
+    except (MathValidationError, MathConversionError, MathResultError) as e:
         logger.exception(
-            "Math evaluation error",
-            query=query,
-            error=str(e),
-            execution_time=execution_time,
+            MathAgentMessages.MATH_VALIDATION_FAILED, query=query, error=str(e)
         )
-        error_msg = f"{ErrorMessage.MATH_EVALUATION_FAILED} '{query}': {e!s}"
-        raise ValueError(error_msg) from e
+        raise
+
+    except Exception as e:
+        logger.exception(
+            MathAgentMessages.MATH_EVALUATION_FAILED, query=query, error=str(e)
+        )
+        raise MathEvaluationError(
+            message=MathAgentMessages.MATH_EVALUATION_FAILED,
+            query=query,
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e

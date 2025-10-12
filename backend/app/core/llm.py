@@ -12,9 +12,10 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
 
 from app.core.settings import get_settings
+from app.services.llm_client import LLMClient
 
 
-def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> ChatOpenAI:
+def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> LLMClient:
     """
     Create a ChatOpenAI instance for LangChain agents.
 
@@ -29,7 +30,9 @@ def get_chat_openai_llm(model: str | None = None, temperature: float = 0) -> Cha
     settings.ensure_openai_api_key()
 
     model_name = model or settings.LLM_MODEL
-    return ChatOpenAI(model=model_name, temperature=temperature)
+    llm = ChatOpenAI(model=model_name, temperature=temperature)
+
+    return LLMClient(llm)
 
 
 def setup_llamaindex_settings(
@@ -67,14 +70,14 @@ def setup_llamaindex_settings(
 
 
 # Convenience functions for common configurations
-def get_math_agent_llm() -> ChatOpenAI:
-    """Get ChatOpenAI LLM configured for math agent."""
+def get_math_agent_llm_client() -> LLMClient:
+    """Get LLMProtocol configured for math agent."""
     settings = get_settings()
     return get_chat_openai_llm(model=settings.MATH_LLM_MODEL, temperature=0)
 
 
-def get_router_agent_llm() -> ChatOpenAI:
-    """Get ChatOpenAI LLM configured for router agent."""
+def get_router_agent_llm_client() -> LLMClient:
+    """Get LLMProtocol configured for router agent."""
     settings = get_settings()
     return get_chat_openai_llm(model=settings.ROUTER_LLM_MODEL, temperature=0)
 

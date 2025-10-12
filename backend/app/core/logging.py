@@ -9,7 +9,7 @@ import logging
 import sys
 from collections.abc import MutableMapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from structlog.stdlib import LoggerFactory
@@ -27,21 +27,21 @@ def add_timestamp(
 
 def add_agent_context(
     logger: Any,
-    method_name: str,  # noqa: ARG001
+    _: str,
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
     """Add agent context to log events."""
     # Extract agent name from logger name if available
-    logger_name = logger.name if hasattr(logger, "name") else ""
-    if "router_agent" in logger_name:
-        event_dict["agent"] = "RouterAgent"
-    elif "math_agent" in logger_name:
-        event_dict["agent"] = "MathAgent"
-    elif "knowledge_agent" in logger_name:
-        event_dict["agent"] = "KnowledgeAgent"
-    else:
-        event_dict["agent"] = "System"
-
+    logger_name = getattr(logger, "name", "").lower()
+    agents = {
+        "router_agent": "RouterAgent",
+        "math_agent": "MathAgent",
+        "knowledge_agent": "KnowledgeAgent",
+    }
+    event_dict["agent"] = next(
+        (name for key, name in agents.items() if key in logger_name),
+        "System",
+    )
     return event_dict
 
 
@@ -55,19 +55,14 @@ def configure_logging() -> None:
     - Agent-specific fields: decision (RouterAgent) or processed_content (other agents)
     - Execution time tracking
     """
-
     # Configure structlog processors
     structlog.configure(
         processors=[
-            # Add timestamp
             add_timestamp,
-            # Add agent context
             add_agent_context,
-            # Add log level
             structlog.stdlib.add_log_level,
-            # Add logger name
             structlog.stdlib.add_logger_name,
-            # Format as JSON
+            structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -93,7 +88,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         Configured structlog logger
     """
-    return structlog.get_logger(name)  # type: ignore[no-any-return]
+    return cast("structlog.stdlib.BoundLogger", structlog.get_logger(name))
 
 
 def log_agent_decision(

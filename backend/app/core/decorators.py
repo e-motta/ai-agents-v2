@@ -1,36 +1,42 @@
-import time
-from collections.abc import Awaitable, Callable
-from functools import wraps
-from typing import Any
+# mypy: disable-error-code=no-untyped-def
 
-from fastapi import HTTPException
+import inspect
+import time
+from functools import wraps
+
 from structlog.stdlib import BoundLogger
 
-from app.core.error_handling import create_knowledge_error, create_math_error
 from app.core.logging import log_agent_processing
-from app.models import ChatRequest, WorkflowStep
+from app.enums import SystemMessages
+from app.schemas import GenericContext, WorkflowStep
+from app.security.constants import GRACEFUL_AGENT_EXCEPTIONS
 
 
-def log_and_handle_agent_errors(
-    logger: BoundLogger, agent_name: str, error_status_code: int = 500
-) -> Callable[
-    [Callable[..., Awaitable[str]]],
-    Callable[[dict[str, Any]], Awaitable[tuple[str, WorkflowStep]]],
-]:
-    """Decorator to handle timing, logging, and exceptions for agent processing."""
+def log_process(logger: BoundLogger, agent_name: str):
+    """Decorator to handle logging for agent processing.
 
-    def decorator(
-        func: Callable[..., Awaitable[str]],
-    ) -> Callable[[dict[str, Any]], Awaitable[tuple[str, WorkflowStep]]]:
+    Works for both sync and async functions.
+    """
+
+    def decorator(func):
+        is_async = inspect.iscoroutinefunction(func)
+
         @wraps(func)
-        async def wrapper(context: dict[str, Any]) -> tuple[str, WorkflowStep]:
-            payload: ChatRequest = context["payload"]
+        async def async_wrapper(context: GenericContext):
             start_time = time.time()
+            execution_time: float | None = None
+
+            payload = context.payload
             query_preview = payload.message[:100]
+            final_response, workflow_step = None, None
+
             try:
-                final_response = await func(context)
+                result = await func(context) if is_async else func(context)
+                final_response, workflow_step = result
                 execution_time = time.time() - start_time
+
                 log_agent_processing(
+                    agent_name=agent_name,
                     logger=logger,
                     conversation_id=payload.conversation_id,
                     user_id=payload.user_id,
@@ -38,13 +44,11 @@ def log_and_handle_agent_errors(
                     execution_time=execution_time,
                     query_preview=query_preview,
                 )
-                return final_response, WorkflowStep(
-                    agent=agent_name, action=func.__name__, result=final_response
-                )
+
             except Exception as e:
                 execution_time = time.time() - start_time
                 logger.exception(
-                    "%s processing failed",
+                    "%s Processing failed",
                     agent_name,
                     conversation_id=payload.conversation_id,
                     user_id=payload.user_id,
@@ -52,12 +56,36 @@ def log_and_handle_agent_errors(
                     execution_time=execution_time,
                     query_preview=query_preview,
                 )
-                # Create appropriate error based on agent type
-                if agent_name == "MathAgent":
-                    raise create_math_error(details=str(e)) from e
-                if agent_name == "KnowledgeAgent":
-                    raise create_knowledge_error(details=str(e)) from e
-                raise HTTPException(status_code=error_status_code, detail=str(e)) from e
+                raise
+
+            return final_response, workflow_step
+
+        # always return an async function to support use in async workflows
+        return async_wrapper
+
+    return decorator
+
+
+def handle_agent_errors(
+    agent_name: str,
+    catch: tuple[type[Exception], ...] = GRACEFUL_AGENT_EXCEPTIONS,
+):
+    """Decorator to catch a specific tuple of exceptions and map them
+    to a standardized error response."""
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except catch:
+                final_response = SystemMessages.GENERIC_ERROR
+                workflow_step = WorkflowStep(
+                    agent=agent_name,
+                    action=func.__name__,
+                    result=final_response,
+                )
+                return final_response, workflow_step
 
         return wrapper
 

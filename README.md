@@ -80,6 +80,9 @@ docker compose --profile build run --build --rm build-index
 ```bash
 # Start all services with Docker Compose
 docker compose up -d --build
+
+# Or use the development configuration with live reload
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
 ### 4. Verify Services

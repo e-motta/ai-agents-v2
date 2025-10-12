@@ -1,7 +1,17 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import Message from "./Message";
 
 const MessageList = ({ messages, isLoading }) => {
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   if (isLoading) {
     return (
       <div className="flex-1 p-4">
@@ -31,7 +41,7 @@ const MessageList = ({ messages, isLoading }) => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((msg, index) => (
         <Message
           key={index}
@@ -42,6 +52,7 @@ const MessageList = ({ messages, isLoading }) => {
           isPending={msg.isPending}
         />
       ))}
+      <div ref={messagesEndRef} />
     </div>
   );
 };

@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi.testclient import TestClient
-from langchain_openai import ChatOpenAI
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from app.dependencies import (
@@ -19,12 +18,13 @@ from app.dependencies import (
     get_router_llm,
 )
 from app.main import app
+from app.services.llm_client import LLMClient
 
 
 @pytest.fixture
-def mock_llm():
-    """Create a mock ChatOpenAI instance for testing."""
-    mock = AsyncMock(spec=ChatOpenAI)
+def mock_llm_client():
+    """Create a mock LLMClient instance for testing."""
+    mock = AsyncMock(spec=LLMClient)
     return mock
 
 
@@ -52,7 +52,7 @@ def test_client():
 
 
 @pytest.fixture(autouse=True)
-def mock_dependencies(mock_llm, mock_knowledge_engine, mock_redis_service):
+def mock_dependencies(mock_llm_client, mock_knowledge_engine, mock_redis_service):
     """
     Automatically mock all dependencies to prevent external calls.
 
@@ -63,8 +63,8 @@ def mock_dependencies(mock_llm, mock_knowledge_engine, mock_redis_service):
     - No external API calls are made
     """
     # Mock the dependency functions
-    app.dependency_overrides[get_math_llm] = lambda: mock_llm
-    app.dependency_overrides[get_router_llm] = lambda: mock_llm
+    app.dependency_overrides[get_math_llm] = lambda: mock_llm_client
+    app.dependency_overrides[get_router_llm] = lambda: mock_llm_client
     app.dependency_overrides[get_knowledge_engine] = lambda: mock_knowledge_engine
     app.dependency_overrides[get_redis_service] = lambda: mock_redis_service
 

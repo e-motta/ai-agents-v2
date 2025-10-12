@@ -8,6 +8,8 @@ from llama_index.core import Document
 
 from app.core.logging import get_logger
 from app.core.settings import get_settings
+from app.enums import KnowledgeAgentMessages
+from app.exceptions import KnowledgeScrapingError
 
 logger = get_logger(__name__)
 
@@ -26,7 +28,7 @@ def _scrape_page_content(url: str) -> dict[str, Any]:
     request_headers = settings.REQUEST_HEADERS
 
     try:
-        logger.info("Scraping content from URL", url=url)
+        logger.info(KnowledgeAgentMessages.SCRAPING_CONTENT_FROM_URL, url=url)
 
         response = requests.get(url, headers=request_headers, timeout=30)
         response.raise_for_status()
@@ -46,13 +48,19 @@ def _scrape_page_content(url: str) -> dict[str, Any]:
         cleaned_text = " ".join(chunk for chunk in chunks if chunk)
 
         logger.info(
-            "Successfully scraped content", url=url, content_length=len(cleaned_text)
+            KnowledgeAgentMessages.SCRAPING_SUCCESS,
+            url=url,
+            content_length=len(cleaned_text),
         )
 
         return {"content": cleaned_text, "url": url}
     except Exception as e:
-        logger.exception("Error scraping URL", url=url, error=str(e))
-        raise
+        logger.exception(KnowledgeAgentMessages.SCRAPING_ERROR, url=url, error=str(e))
+        raise KnowledgeScrapingError(
+            message=KnowledgeAgentMessages.SCRAPING_ERROR,
+            url=url,
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e
 
 
 def _find_collection_links(base_url: str) -> set[str]:
@@ -71,7 +79,9 @@ def _find_collection_links(base_url: str) -> set[str]:
     collection_links = set()
 
     try:
-        logger.info("Finding collection links", base_url=base_url)
+        logger.info(
+            KnowledgeAgentMessages.SCRAPING_FINDING_COLLECTIONS, base_url=base_url
+        )
 
         response = requests.get(base_url, headers=request_headers, timeout=30)
         response.raise_for_status()
@@ -89,17 +99,21 @@ def _find_collection_links(base_url: str) -> set[str]:
             # Check if this is a collection link
             if "/collections/" in absolute_url:
                 collection_links.add(absolute_url)
-                logger.info("Found collection link", url=absolute_url)
+                logger.info(
+                    KnowledgeAgentMessages.SCRAPING_FOUND_COLLECTION, url=absolute_url
+                )
 
         logger.info(
-            "Collection links search completed",
+            KnowledgeAgentMessages.SCRAPING_COLLECTIONS_COMPLETED,
             base_url=base_url,
             links_found=len(collection_links),
         )
         return collection_links
     except Exception as e:
         logger.exception(
-            "Error finding collection links", base_url=base_url, error=str(e)
+            KnowledgeAgentMessages.SCRAPING_COLLECTION_ERROR,
+            base_url=base_url,
+            error=str(e),
         )
         return set()
 
@@ -120,7 +134,10 @@ def _find_article_links(collection_url: str) -> set[str]:
     article_links = set()
 
     try:
-        logger.info("Finding article links", collection_url=collection_url)
+        logger.info(
+            KnowledgeAgentMessages.SCRAPING_FINDING_ARTICLES,
+            collection_url=collection_url,
+        )
 
         response = requests.get(collection_url, headers=request_headers, timeout=30)
         response.raise_for_status()
@@ -138,17 +155,21 @@ def _find_article_links(collection_url: str) -> set[str]:
             # Check if this is an article link
             if "/articles/" in absolute_url:
                 article_links.add(absolute_url)
-                logger.info("Found article link", url=absolute_url)
+                logger.info(
+                    KnowledgeAgentMessages.SCRAPING_FOUND_ARTICLE, url=absolute_url
+                )
 
         logger.info(
-            "Article links search completed",
+            KnowledgeAgentMessages.SCRAPING_ARTICLES_COMPLETED,
             collection_url=collection_url,
             links_found=len(article_links),
         )
         return article_links
     except Exception as e:
         logger.exception(
-            "Error finding article links", collection_url=collection_url, error=str(e)
+            KnowledgeAgentMessages.SCRAPING_ARTICLE_ERROR,
+            collection_url=collection_url,
+            error=str(e),
         )
         return set()
 
@@ -168,7 +189,7 @@ def crawl_help_center() -> list[Document]:
 
     try:
         start_time = time.time()
-        logger.info("Starting comprehensive crawl of InfinitePay help center")
+        logger.info(KnowledgeAgentMessages.SCRAPING_STARTING)
 
         # Step 1: Find all collection links
         collection_links = _find_collection_links(base_url)
@@ -192,7 +213,7 @@ def crawl_help_center() -> list[Document]:
 
             try:
                 logger.info(
-                    "Processing article",
+                    KnowledgeAgentMessages.SCRAPING_PROCESSING_ARTICLE,
                     current=i,
                     total=len(all_article_links),
                     url=article_url,
@@ -211,23 +232,33 @@ def crawl_help_center() -> list[Document]:
                         },
                     )
                     documents.append(doc)
-                    logger.info("Created document", url=article_url)
+                    logger.info(
+                        KnowledgeAgentMessages.SCRAPING_CREATED_DOCUMENT,
+                        url=article_url,
+                    )
                 else:
-                    logger.warning("No content found", url=article_url)
+                    logger.warning(
+                        KnowledgeAgentMessages.SCRAPING_NO_CONTENT, url=article_url
+                    )
 
             except Exception as e:
                 logger.exception(
-                    "Error processing article", url=article_url, error=str(e)
+                    KnowledgeAgentMessages.SCRAPING_ERROR_PROCESSING,
+                    url=article_url,
+                    error=str(e),
                 )
                 continue
 
         execution_time = time.time() - start_time
         logger.info(
-            "Crawling completed",
+            KnowledgeAgentMessages.SCRAPING_COMPLETED,
             documents_created=len(documents),
             execution_time=execution_time,
         )
         return documents
     except Exception as e:
-        logger.exception("Error during crawling", error=str(e))
-        raise
+        logger.exception(KnowledgeAgentMessages.SCRAPING_ERROR_DURING, error=str(e))
+        raise KnowledgeScrapingError(
+            message=KnowledgeAgentMessages.SCRAPING_ERROR_DURING,
+            details={"original_error": str(e), "error_type": type(e).__name__},
+        ) from e

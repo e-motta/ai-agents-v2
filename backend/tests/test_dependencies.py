@@ -14,7 +14,7 @@ from app.dependencies import (
     get_router_llm,
     get_sanitized_message_from_request,
 )
-from app.models import ChatRequest
+from app.schemas import ChatRequest
 
 
 class TestGetSanitizedMessageFromRequest:
@@ -75,37 +75,39 @@ class TestGetSanitizedMessageFromRequest:
 class TestGetMathLlm:
     """Test the get_math_llm function."""
 
-    @patch("app.dependencies.get_math_agent_llm")
-    def test_get_math_llm_calls_agent_function(self, mock_get_math_agent_llm):
+    @patch("app.dependencies.get_math_agent_llm_client")
+    def test_get_math_llm_calls_agent_function(self, mock_get_math_agent_llm_client):
         """Test that get_math_llm calls the agent function."""
         # Mock the agent function
         mock_llm = Mock()
-        mock_get_math_agent_llm.return_value = mock_llm
+        mock_get_math_agent_llm_client.return_value = mock_llm
 
         # Call the function
         result = get_math_llm()
 
         # Verify result
         assert result == mock_llm
-        mock_get_math_agent_llm.assert_called_once()
+        mock_get_math_agent_llm_client.assert_called_once()
 
 
 class TestGetRouterLlm:
     """Test the get_router_llm function."""
 
-    @patch("app.dependencies.get_router_agent_llm")
-    def test_get_router_llm_calls_agent_function(self, mock_get_router_agent_llm):
+    @patch("app.dependencies.get_router_agent_llm_client")
+    def test_get_router_llm_calls_agent_function(
+        self, mock_get_router_agent_llm_client
+    ):
         """Test that get_router_llm calls the agent function."""
         # Mock the agent function
         mock_llm = Mock()
-        mock_get_router_agent_llm.return_value = mock_llm
+        mock_get_router_agent_llm_client.return_value = mock_llm
 
         # Call the function
         result = get_router_llm()
 
         # Verify result
         assert result == mock_llm
-        mock_get_router_agent_llm.assert_called_once()
+        mock_get_router_agent_llm_client.assert_called_once()
 
 
 class TestGetKnowledgeEngine:

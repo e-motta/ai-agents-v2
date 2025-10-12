@@ -1,0 +1,50 @@
+from app.enums import Agents
+from app.exceptions import KnowledgeAgentError, MathAgentError, RouterAgentError
+
+SUSPICIOUS_PATTERNS: tuple[str, ...] = (
+    # English patterns
+    "ignore previous instructions",
+    "forget everything",
+    "system prompt",
+    "you are now",
+    "act as",
+    "pretend to be",
+    "roleplay",
+    "jailbreak",
+    "developer mode",
+    "admin mode",
+    "override",
+    "bypass",
+    "exploit",
+    "hack",
+    "inject",
+    "execute",
+    "run command",
+    "system call",
+    "file://",
+    "http://",
+    "https://",
+    "<script>",
+    "javascript:",
+    "data:",
+    "eval(",
+    "exec(",
+    "import os",
+    "subprocess",
+    "shell",
+    "terminal",
+    "command line",
+    "prompt injection",
+    "llm injection",
+    # Portuguese patterns
+    "ignore as instruções anteriores",
+    "esqueça tudo",
+    "prompt do sistema",
+    "você agora é",
+    "aja como",
+    "finja ser",
+    "interprete o papel de",
+)
+
+GRACEFUL_AGENT_EXCEPTIONS = (RouterAgentError, MathAgentError, KnowledgeAgentError)
+CONVERT_RESPONSE_AGENTS = (Agents.MathAgent,)
