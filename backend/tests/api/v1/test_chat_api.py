@@ -40,14 +40,14 @@ class TestChatAPI:
         assert data["source_agent_response"] == "4"
 
         # Check workflow steps
-        router_step = data["agent_workflow"][0]
+        router_step = data["workflow_history"][0]
         assert router_step["agent"] == "RouterAgent"
-        assert router_step["action"] == "route_query"
+        assert router_step["action"] == "_route_query"
         assert router_step["result"] == "MathAgent"
 
-        math_step = data["agent_workflow"][1]
+        math_step = data["workflow_history"][1]
         assert math_step["agent"] == "MathAgent"
-        assert math_step["action"] == "process_math"
+        assert math_step["action"] == "_process_math"
         assert math_step["result"] == "4"
 
     def test_chat_knowledge_query_success(
@@ -79,14 +79,14 @@ class TestChatAPI:
         assert data["source_agent_response"] == "The fees are 2.5% per transaction."
 
         # Check workflow steps
-        router_step = data["agent_workflow"][0]
+        router_step = data["workflow_history"][0]
         assert router_step["agent"] == "RouterAgent"
-        assert router_step["action"] == "route_query"
+        assert router_step["action"] == "_route_query"
         assert router_step["result"] == "KnowledgeAgent"
 
-        knowledge_step = data["agent_workflow"][1]
+        knowledge_step = data["workflow_history"][1]
         assert knowledge_step["agent"] == "KnowledgeAgent"
-        assert knowledge_step["action"] == "process_knowledge"
+        assert knowledge_step["action"] == "_process_knowledge"
         assert knowledge_step["result"] == "The fees are 2.5% per transaction."
 
     def test_chat_unsupported_language(
@@ -123,9 +123,9 @@ class TestChatAPI:
         )
 
         # Check workflow steps
-        system_step = data["agent_workflow"][1]
+        system_step = data["workflow_history"][1]
         assert system_step["agent"] == "System"
-        assert system_step["action"] == "reject"
+        assert system_step["action"] == "_process_unsupported_language"
         assert system_step["result"] == "UnsupportedLanguage"
 
     def test_chat_error_handling(
@@ -159,9 +159,9 @@ class TestChatAPI:
         )
 
         # Check workflow steps
-        system_step = data["agent_workflow"][1]
+        system_step = data["workflow_history"][1]
         assert system_step["agent"] == "System"
-        assert system_step["action"] == "error"
+        assert system_step["action"] == "_process_error"
         assert system_step["result"] == "Error"
 
     def test_chat_router_exception_handling(
@@ -192,9 +192,9 @@ class TestChatAPI:
         )
 
         # Check workflow steps
-        router_step = data["agent_workflow"][0]
+        router_step = data["workflow_history"][0]
         assert router_step["agent"] == "RouterAgent"
-        assert router_step["action"] == "route_query"
+        assert router_step["action"] == "_route_query"
         assert router_step["result"] == "Error"
 
     def test_chat_empty_message_validation(
@@ -505,15 +505,15 @@ class TestChatAPI:
             "router_decision",
             "response",
             "source_agent_response",
-            "agent_workflow",
+            "workflow_history",
         ]
         for field in required_fields:
             assert field in data
 
-        # Verify agent_workflow structure
-        assert isinstance(data["agent_workflow"], list)
+        # Verify workflow_history structure
+        assert isinstance(data["workflow_history"], list)
 
-        for step in data["agent_workflow"]:
+        for step in data["workflow_history"]:
             assert "agent" in step
             assert "action" in step
             assert "result" in step

@@ -68,7 +68,6 @@ def log_process(logger: BoundLogger, agent_name: str):
 
 def handle_agent_errors(
     agent_name: str,
-    action: str,
     catch: tuple[type[Exception], ...] = GRACEFUL_AGENT_EXCEPTIONS,
 ):
     """Decorator to catch a specific tuple of exceptions and map them
@@ -83,7 +82,7 @@ def handle_agent_errors(
                 final_response = SystemMessages.GENERIC_ERROR
                 workflow_step = WorkflowStep(
                     agent=agent_name,
-                    action=action,
+                    action=func.__name__,
                     result=final_response,
                 )
                 return final_response, workflow_step

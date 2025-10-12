@@ -15,7 +15,7 @@ from app.security.constants import CONVERT_RESPONSE_AGENTS
 logger = get_logger(__name__)
 
 
-@handle_agent_errors(Agents.RouterAgent, "route_query")
+@handle_agent_errors(Agents.RouterAgent)
 @log_process(logger, Agents.RouterAgent)
 async def _route_query(context: RoutingContext) -> tuple[str, WorkflowStep]:
     """Handle RouterAgent flow."""
@@ -26,11 +26,11 @@ async def _route_query(context: RoutingContext) -> tuple[str, WorkflowStep]:
         user_id=context.payload.user_id,
     )
     return response, WorkflowStep(
-        agent="RouterAgent", action="route_query", result=str(response)
+        agent="RouterAgent", action=_route_query.__name__, result=str(response)
     )
 
 
-@handle_agent_errors(Agents.RouterAgent, "convert_response")
+@handle_agent_errors(Agents.RouterAgent)
 @log_process(logger, Agents.RouterAgent)
 async def _convert_response(context: RoutingContext) -> tuple[str, WorkflowStep]:
     if context.agent_type in CONVERT_RESPONSE_AGENTS:
@@ -43,21 +43,21 @@ async def _convert_response(context: RoutingContext) -> tuple[str, WorkflowStep]
     else:
         response = context.agent_response or SystemMessages.GENERIC_ERROR
     return response, WorkflowStep(
-        agent="RouterAgent", action="convert_response", result=str(response)
+        agent="RouterAgent", action=_convert_response.__name__, result=str(response)
     )
 
 
-@handle_agent_errors(Agents.MathAgent, "process_math")
+@handle_agent_errors(Agents.MathAgent)
 @log_process(logger, Agents.MathAgent)
 async def _process_math(context: ProcessingContext) -> tuple[str, WorkflowStep]:
     """Handle MathAgent flow."""
     final_response = await solve_math(context.sanitized_message, context.llm_client)
     return final_response, WorkflowStep(
-        agent=Agents.MathAgent, action="process_math", result=final_response
+        agent=Agents.MathAgent, action=_process_math.__name__, result=final_response
     )
 
 
-@handle_agent_errors(Agents.KnowledgeAgent, "process_knowledge")
+@handle_agent_errors(Agents.KnowledgeAgent)
 @log_process(logger, Agents.KnowledgeAgent)
 async def _process_knowledge(context: ProcessingContext) -> tuple[str, WorkflowStep]:
     """Handle KnowledgeAgent flow."""
@@ -70,7 +70,7 @@ async def _process_knowledge(context: ProcessingContext) -> tuple[str, WorkflowS
     final_response = await query_knowledge(context.sanitized_message, knowledge_engine)
     return final_response, WorkflowStep(
         agent=Agents.KnowledgeAgent,
-        action="process_knowledge",
+        action=_process_knowledge.__name__,
         result=final_response,
     )
 
@@ -79,7 +79,9 @@ async def _process_knowledge(context: ProcessingContext) -> tuple[str, WorkflowS
 def _process_unsupported_language(_: ProcessingContext) -> tuple[str, WorkflowStep]:
     """Handle unsupported language decision."""
     return SystemMessages.UNSUPPORTED_LANGUAGE, WorkflowStep(
-        agent="System", action="reject", result=str(WorkflowSignals.UnsupportedLanguage)
+        agent="System",
+        action=_process_unsupported_language.__name__,
+        result=str(WorkflowSignals.UnsupportedLanguage),
     )
 
 
@@ -87,7 +89,9 @@ def _process_unsupported_language(_: ProcessingContext) -> tuple[str, WorkflowSt
 def _process_error(_: ProcessingContext) -> tuple[str, WorkflowStep]:
     """Handle generic error decision."""
     return SystemMessages.GENERIC_ERROR, WorkflowStep(
-        agent="System", action="error", result=str(WorkflowSignals.Error)
+        agent="System",
+        action=_process_error.__name__,
+        result=str(WorkflowSignals.Error),
     )
 
 

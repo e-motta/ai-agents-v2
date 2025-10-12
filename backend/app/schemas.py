@@ -43,7 +43,7 @@ class ChatResponse(BaseModel):
     router_decision: str
     response: str
     source_agent_response: str
-    agent_workflow: list[WorkflowStep]
+    workflow_history: list[WorkflowStep]
 
 
 class ErrorResponse(BaseModel):

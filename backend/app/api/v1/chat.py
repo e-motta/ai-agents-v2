@@ -120,6 +120,7 @@ async def chat(
         router_decision=str(decision),
         execution_time=total_execution_time,
         response_preview=final_response[:100],
+        workflow_history=[s.model_dump() for s in workflow_history],
     )
 
     _save_conversation_to_redis(
@@ -137,7 +138,7 @@ async def chat(
         router_decision=str(decision),
         response=final_response,
         source_agent_response=agent_response,
-        agent_workflow=workflow_history,
+        workflow_history=workflow_history,
     )
 
 
