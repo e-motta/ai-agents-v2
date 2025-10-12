@@ -7,8 +7,9 @@ from functools import wraps
 from structlog.stdlib import BoundLogger
 
 from app.core.logging import log_agent_processing
-from app.enums import Agents, SystemMessages
+from app.enums import SystemMessages
 from app.models import ChatContext, WorkflowStep
+from app.security.constants import GRACEFUL_AGENT_EXCEPTIONS
 
 
 def log_process(logger: BoundLogger, agent_name: str):
@@ -65,24 +66,27 @@ def log_process(logger: BoundLogger, agent_name: str):
     return decorator
 
 
-def handle_process_exception(agent_name: str, action: str):
-    """Decorator to map exceptions to agent-specific errors."""
+def handle_agent_errors(
+    agent_name: str,
+    action: str,
+    catch: tuple[type[Exception], ...] = GRACEFUL_AGENT_EXCEPTIONS,
+):
+    """Decorator to catch a specific tuple of exceptions and map them
+    to a standardized error response."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             try:
                 return await func(*args, **kwargs)
-            except Exception:
-                if agent_name in {Agents.KnowledgeAgent, Agents.MathAgent}:
-                    final_response = SystemMessages.GENERIC_ERROR
-                    workflow_step = WorkflowStep(
-                        agent=agent_name,
-                        action=action,
-                        result=final_response,
-                    )
-                    return final_response, workflow_step
-                raise
+            except catch:
+                final_response = SystemMessages.GENERIC_ERROR
+                workflow_step = WorkflowStep(
+                    agent=agent_name,
+                    action=action,
+                    result=final_response,
+                )
+                return final_response, workflow_step
 
         return wrapper
 

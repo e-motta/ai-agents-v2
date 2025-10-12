@@ -1,20 +1,10 @@
-import asyncio
 import time
-from collections.abc import Awaitable, Callable
-from typing import cast
 
 from fastapi import APIRouter, Depends
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.agents.knowledge_agent import query_knowledge
-from app.agents.math_agent import solve_math
 from app.agents.router_agent import convert_response, route_query
-from app.core.decorators import handle_process_exception, log_process
-from app.core.error_handling import (
-    create_redis_error,
-    create_service_unavailable_error,
-    create_validation_error,
-)
+from app.core.error_handling import create_redis_error, create_validation_error
 from app.core.logging import get_logger
 from app.dependencies import (
     RedisServiceDep,
@@ -23,69 +13,13 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import Agents, KnowledgeAgentMessages, SystemMessages, WorkflowSignals
+from app.enums import Agents, WorkflowSignals
 from app.models import ChatContext, ChatRequest, ChatResponse, WorkflowStep
+from app.services.chat_dispatcher import dispatch_agent_request
 from app.services.llm_client import LLMClient
 
 router = APIRouter()
 logger = get_logger(__name__)
-
-
-@handle_process_exception(Agents.MathAgent, "process_math")
-@log_process(logger, Agents.MathAgent)
-async def _process_math(context: ChatContext) -> tuple[str, WorkflowStep]:
-    """Handle MathAgent flow."""
-    final_response = await solve_math(context.sanitized_message, context.llm_client)
-    return final_response, WorkflowStep(
-        agent=Agents.MathAgent, action="process_math", result=final_response
-    )
-
-
-@handle_process_exception(Agents.KnowledgeAgent, "process_knowledge")
-@log_process(logger, Agents.KnowledgeAgent)
-async def _process_knowledge(context: ChatContext) -> tuple[str, WorkflowStep]:
-    """Handle KnowledgeAgent flow."""
-    knowledge_engine = context.knowledge_engine
-    if knowledge_engine is None:
-        raise create_service_unavailable_error(
-            service_name="Knowledge Base",
-            details=KnowledgeAgentMessages.KNOWLEDGE_BASE_UNAVAILABLE,
-        )
-    final_response = await query_knowledge(context.sanitized_message, knowledge_engine)
-    return final_response, WorkflowStep(
-        agent=Agents.KnowledgeAgent,
-        action="process_knowledge",
-        result=final_response,
-    )
-
-
-@log_process(logger, "UnsupportedLanguage")
-def _process_unsupported_language(_: ChatContext) -> tuple[str, WorkflowStep]:
-    """Handle unsupported language decision."""
-    return SystemMessages.UNSUPPORTED_LANGUAGE, WorkflowStep(
-        agent="System", action="reject", result=str(WorkflowSignals.UnsupportedLanguage)
-    )
-
-
-@log_process(logger, "Error")
-def _process_error(_: ChatContext) -> tuple[str, WorkflowStep]:
-    """Handle generic error decision."""
-    return SystemMessages.GENERIC_ERROR, WorkflowStep(
-        agent="System", action="error", result=str(WorkflowSignals.Error)
-    )
-
-
-SyncChatHandler = Callable[[ChatContext], tuple[str, WorkflowStep]]
-AsyncChatHandler = Callable[[ChatContext], Awaitable[tuple[str, WorkflowStep]]]
-
-HANDLER_BY_DECISION: dict[
-    Agents | WorkflowSignals, SyncChatHandler | AsyncChatHandler
-] = {
-    Agents.MathAgent: _process_math,
-    Agents.KnowledgeAgent: _process_knowledge,
-    WorkflowSignals.UnsupportedLanguage: _process_unsupported_language,
-    WorkflowSignals.Error: _process_error,
-}
 
 
 def _save_conversation_to_redis(
@@ -180,14 +114,8 @@ async def chat(
         llm_client=math_llm,
         knowledge_engine=knowledge_engine,
     )
-    handler = HANDLER_BY_DECISION.get(decision, _process_error)
 
-    if asyncio.iscoroutinefunction(handler):
-        handler = cast("AsyncChatHandler", handler)
-        source_agent_response, step = await handler(context)
-    else:
-        handler = cast("SyncChatHandler", handler)
-        source_agent_response, step = handler(context)
+    source_agent_response, step = await dispatch_agent_request(decision, context)
 
     agent_workflow.append(step)
 

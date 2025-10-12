@@ -7,10 +7,14 @@ across the application using the ErrorResponse model and ErrorMessage enum.
 
 from enum import StrEnum
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
 
-from app.enums import KnowledgeAgentMessages, MathAgentMessages, SystemMessages
+from app.core.logging import get_logger
+from app.enums import SystemMessages
 from app.models import ErrorResponse
+
+logger = get_logger(__name__)
 
 
 def create_error_response(
@@ -46,26 +50,6 @@ def create_validation_error(details: str | None = None) -> HTTPException:
     )
 
 
-def create_math_error(details: str | None = None) -> HTTPException:
-    """Create a math evaluation error response."""
-    return create_error_response(
-        error_message=MathAgentMessages.MATH_EVALUATION_FAILED,
-        code="MATH_ERROR",
-        details=details,
-        status_code=status.HTTP_400_BAD_REQUEST,
-    )
-
-
-def create_knowledge_error(details: str | None = None) -> HTTPException:
-    """Create a knowledge base error response."""
-    return create_error_response(
-        error_message=KnowledgeAgentMessages.KNOWLEDGE_QUERY_FAILED,
-        code="KNOWLEDGE_ERROR",
-        details=details,
-        status_code=status.HTTP_400_BAD_REQUEST,
-    )
-
-
 def create_service_unavailable_error(
     service_name: str, details: str | None = None
 ) -> HTTPException:
@@ -85,4 +69,31 @@ def create_redis_error(details: str | None = None) -> HTTPException:
         code="REDIS_ERROR",
         details=details,
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+async def custom_global_exception_handler(
+    request: Request,
+    exception: Exception,  # noqa: ARG001
+) -> JSONResponse:
+    """
+    Global exception handler to catch all unhandled errors
+    and return a generic 500 response.
+
+    Args:
+        request: The FastAPI request object
+        exc: The exception that was raised
+
+    Returns:
+        JSONResponse: A generic 500 error response
+    """
+    logger.error(
+        "Unhandled exception caught by global handler",
+        path=str(request.url),
+        method=request.method,
+        exc_info=True,
+    )
+
+    return JSONResponse(
+        status_code=500, content={"detail": "An internal error occurred."}
     )

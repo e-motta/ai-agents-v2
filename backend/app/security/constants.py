@@ -1,3 +1,5 @@
+from app.exceptions import KnowledgeAgentError, MathAgentError, RouterAgentError
+
 SUSPICIOUS_PATTERNS: tuple[str, ...] = (
     # English patterns
     "ignore previous instructions",
@@ -42,3 +44,5 @@ SUSPICIOUS_PATTERNS: tuple[str, ...] = (
     "finja ser",
     "interprete o papel de",
 )
+
+GRACEFUL_AGENT_EXCEPTIONS = (RouterAgentError, MathAgentError, KnowledgeAgentError)

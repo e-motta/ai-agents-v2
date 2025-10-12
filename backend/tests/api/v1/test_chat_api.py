@@ -6,6 +6,7 @@ external calls or warming up expensive resources.
 """
 
 from app.enums import Agents
+from app.exceptions import MathAgentError
 
 
 class TestChatAPI:
@@ -263,7 +264,7 @@ class TestChatAPI:
         self, test_client, mock_llm_client, mock_knowledge_engine
     ):
         """Test handling of math agent exceptions."""
-        mock_llm_client.ask.side_effect = ["MathAgent", Exception("Math Error")]
+        mock_llm_client.ask.side_effect = ["MathAgent", MathAgentError("Math Error")]
 
         payload = {
             "message": "What is 2 + 2?",
