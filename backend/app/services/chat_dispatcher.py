@@ -4,12 +4,13 @@ from typing import Literal, cast, overload
 
 from app.agents.knowledge_agent import query_knowledge
 from app.agents.math_agent import solve_math
-from app.agents.router_agent import route_query
+from app.agents.router_agent import convert_response, route_query
 from app.core.decorators import handle_agent_errors, log_process
 from app.core.error_handling import create_service_unavailable_error
 from app.core.logging import get_logger
 from app.enums import Agents, KnowledgeAgentMessages, SystemMessages, WorkflowSignals
 from app.schemas import ProcessingContext, RoutingContext, WorkflowStep
+from app.security.constants import CONVERT_RESPONSE_AGENTS
 
 logger = get_logger(__name__)
 
@@ -26,6 +27,23 @@ async def _route_query(context: RoutingContext) -> tuple[str, WorkflowStep]:
     )
     return response, WorkflowStep(
         agent="RouterAgent", action="route_query", result=str(response)
+    )
+
+
+@handle_agent_errors(Agents.RouterAgent, "convert_response")
+@log_process(logger, Agents.RouterAgent)
+async def _convert_response(context: RoutingContext) -> tuple[str, WorkflowStep]:
+    if context.agent_type in CONVERT_RESPONSE_AGENTS:
+        response = await convert_response(
+            original_query=context.sanitized_message,
+            agent_response=context.agent_response or SystemMessages.GENERIC_ERROR,
+            agent_type=context.agent_type or WorkflowSignals.Error,
+            llm_client=context.llm_client,
+        )
+    else:
+        response = context.agent_response or SystemMessages.GENERIC_ERROR
+    return response, WorkflowStep(
+        agent="RouterAgent", action="convert_response", result=str(response)
     )
 
 
@@ -88,6 +106,7 @@ HANDLER_MAP: dict[Agents | WorkflowSignals, SyncChatHandler | AsyncChatHandler] 
     Agents.KnowledgeAgent: _process_knowledge,
     WorkflowSignals.UnsupportedLanguage: _process_unsupported_language,
     WorkflowSignals.Error: _process_error,
+    WorkflowSignals.ResponseConversion: _convert_response,
 }
 
 
@@ -95,6 +114,12 @@ HANDLER_MAP: dict[Agents | WorkflowSignals, SyncChatHandler | AsyncChatHandler] 
 async def dispatch_chat_workflow(
     signal: Literal[Agents.RouterAgent], context: RoutingContext
 ) -> tuple[Agents | WorkflowSignals, WorkflowStep]: ...
+
+
+@overload
+async def dispatch_chat_workflow(
+    signal: Literal[WorkflowSignals.ResponseConversion], context: RoutingContext
+) -> tuple[str | WorkflowSignals, WorkflowStep]: ...
 
 
 @overload

@@ -25,6 +25,8 @@ class ProcessingContext(GenericContext):
 class RoutingContext(GenericContext):
     sanitized_message: str
     llm_client: LLMClient
+    agent_response: str | None = None
+    agent_type: str | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 

@@ -10,6 +10,7 @@ class Agents(StrEnum):
 class WorkflowSignals(StrEnum):
     UnsupportedLanguage = "UnsupportedLanguage"
     Error = "Error"
+    ResponseConversion = "ResponseConversion"
 
 
 class SystemMessages(StrEnum):

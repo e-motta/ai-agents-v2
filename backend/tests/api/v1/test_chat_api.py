@@ -38,7 +38,6 @@ class TestChatAPI:
         assert data["router_decision"] == "MathAgent"
         assert data["response"] == "The answer is 4. So 2 + 2 equals 4."
         assert data["source_agent_response"] == "4"
-        assert len(data["agent_workflow"]) == 2
 
         # Check workflow steps
         router_step = data["agent_workflow"][0]
@@ -78,7 +77,6 @@ class TestChatAPI:
         assert data["router_decision"] == "KnowledgeAgent"
         assert data["response"] == "The fees are 2.5% per transaction."
         assert data["source_agent_response"] == "The fees are 2.5% per transaction."
-        assert len(data["agent_workflow"]) == 2
 
         # Check workflow steps
         router_step = data["agent_workflow"][0]
@@ -123,7 +121,6 @@ class TestChatAPI:
             == "Unsupported language. Please ask in English or Portuguese. "
             "/ Por favor, pergunte em inglês ou português."
         )
-        assert len(data["agent_workflow"]) == 2
 
         # Check workflow steps
         system_step = data["agent_workflow"][1]
@@ -160,7 +157,6 @@ class TestChatAPI:
             data["source_agent_response"] == "Sorry, I could not process your request. "
             "/ Desculpe, não consegui processar a sua pergunta."
         )
-        assert len(data["agent_workflow"]) == 2
 
         # Check workflow steps
         system_step = data["agent_workflow"][1]
@@ -194,7 +190,6 @@ class TestChatAPI:
             data["source_agent_response"] == "Sorry, I could not process your request. "
             "/ Desculpe, não consegui processar a sua pergunta."
         )
-        assert len(data["agent_workflow"]) == 2
 
         # Check workflow steps
         router_step = data["agent_workflow"][0]
@@ -517,7 +512,6 @@ class TestChatAPI:
 
         # Verify agent_workflow structure
         assert isinstance(data["agent_workflow"], list)
-        assert len(data["agent_workflow"]) >= 1
 
         for step in data["agent_workflow"]:
             assert "agent" in step

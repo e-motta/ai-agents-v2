@@ -3,7 +3,6 @@ import time
 from fastapi import APIRouter, Depends
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.agents.router_agent import convert_response
 from app.core.error_handling import create_redis_error, create_validation_error
 from app.core.logging import get_logger
 from app.dependencies import (
@@ -13,7 +12,7 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import Agents
+from app.enums import Agents, WorkflowSignals
 from app.schemas import ChatRequest, ChatResponse, ProcessingContext, RoutingContext
 from app.services.chat_dispatcher import dispatch_chat_workflow
 from app.services.llm_client import LLMClient
@@ -93,10 +92,8 @@ async def chat(
         sanitized_message=sanitized_message,
         llm_client=router_llm,
     )
-
     decision, step = await dispatch_chat_workflow(Agents.RouterAgent, routing_context)
-
-    agent_workflow = [step]
+    workflow_history = [step]
 
     processing_context = ProcessingContext(
         payload=payload,
@@ -104,29 +101,16 @@ async def chat(
         llm_client=math_llm,
         knowledge_engine=knowledge_engine,
     )
-
     agent_response, step = await dispatch_chat_workflow(decision, processing_context)
+    workflow_history.append(step)
 
-    agent_workflow.append(step)
-
-    try:
-        if decision in [Agents.MathAgent]:
-            final_response = await convert_response(
-                original_query=sanitized_message,
-                agent_response=agent_response,
-                agent_type=str(decision),
-                llm_client=router_llm,
-            )
-        else:
-            final_response = agent_response
-    except Exception as e:
-        logger.exception(
-            "Response conversion failed, using original response",
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-            error=str(e),
-        )
-        final_response = agent_response
+    conversion_context = routing_context.model_copy(
+        update={"agent_response": agent_response, "agent_type": str(decision)}
+    )
+    final_response, step = await dispatch_chat_workflow(
+        WorkflowSignals.ResponseConversion, conversion_context
+    )
+    workflow_history.append(step)
 
     total_execution_time = time.time() - start_time
     logger.info(
@@ -153,7 +137,7 @@ async def chat(
         router_decision=str(decision),
         response=final_response,
         source_agent_response=agent_response,
-        agent_workflow=agent_workflow,
+        agent_workflow=workflow_history,
     )
 
 

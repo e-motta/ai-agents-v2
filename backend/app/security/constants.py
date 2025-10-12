@@ -1,3 +1,4 @@
+from app.enums import Agents
 from app.exceptions import KnowledgeAgentError, MathAgentError, RouterAgentError
 
 SUSPICIOUS_PATTERNS: tuple[str, ...] = (
@@ -46,3 +47,4 @@ SUSPICIOUS_PATTERNS: tuple[str, ...] = (
 )
 
 GRACEFUL_AGENT_EXCEPTIONS = (RouterAgentError, MathAgentError, KnowledgeAgentError)
+CONVERT_RESPONSE_AGENTS = (Agents.MathAgent,)
