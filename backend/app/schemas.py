@@ -10,12 +10,23 @@ class ChatRequest(BaseModel):
     conversation_id: str
 
 
-class ChatContext(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
+class GenericContext(BaseModel):
     payload: ChatRequest
+
+
+class ProcessingContext(GenericContext):
     sanitized_message: str
     llm_client: LLMClient
     knowledge_engine: BaseQueryEngine | None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class RoutingContext(GenericContext):
+    sanitized_message: str
+    llm_client: LLMClient
+
+    model_config = {"arbitrary_types_allowed": True}
 
 
 class WorkflowStep(BaseModel):

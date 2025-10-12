@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Depends
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from app.agents.router_agent import convert_response, route_query
+from app.agents.router_agent import convert_response
 from app.core.error_handling import create_redis_error, create_validation_error
 from app.core.logging import get_logger
 from app.dependencies import (
@@ -13,9 +13,9 @@ from app.dependencies import (
     get_math_llm,
     get_router_llm,
 )
-from app.enums import Agents, WorkflowSignals
-from app.models import ChatContext, ChatRequest, ChatResponse, WorkflowStep
-from app.services.chat_dispatcher import dispatch_agent_request
+from app.enums import Agents
+from app.schemas import ChatRequest, ChatResponse, ProcessingContext, RoutingContext
+from app.services.chat_dispatcher import dispatch_chat_workflow
 from app.services.llm_client import LLMClient
 
 router = APIRouter()
@@ -88,34 +88,24 @@ async def chat(
         message_preview=sanitized_message[:100],
     )
 
-    try:
-        decision = await route_query(
-            sanitized_message,
-            llm_client=router_llm,
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-        )
-    except Exception as e:
-        logger.exception(
-            "Router agent failed",
-            conversation_id=payload.conversation_id,
-            user_id=payload.user_id,
-            error=str(e),
-        )
-        decision = WorkflowSignals.Error
+    routing_context = RoutingContext(
+        payload=payload,
+        sanitized_message=sanitized_message,
+        llm_client=router_llm,
+    )
 
-    agent_workflow: list[WorkflowStep] = [
-        WorkflowStep(agent="RouterAgent", action="route_query", result=str(decision))
-    ]
+    decision, step = await dispatch_chat_workflow(Agents.RouterAgent, routing_context)
 
-    context = ChatContext(
+    agent_workflow = [step]
+
+    processing_context = ProcessingContext(
         payload=payload,
         sanitized_message=sanitized_message,
         llm_client=math_llm,
         knowledge_engine=knowledge_engine,
     )
 
-    source_agent_response, step = await dispatch_agent_request(decision, context)
+    agent_response, step = await dispatch_chat_workflow(decision, processing_context)
 
     agent_workflow.append(step)
 
@@ -123,12 +113,12 @@ async def chat(
         if decision in [Agents.MathAgent]:
             final_response = await convert_response(
                 original_query=sanitized_message,
-                agent_response=source_agent_response,
+                agent_response=agent_response,
                 agent_type=str(decision),
                 llm_client=router_llm,
             )
         else:
-            final_response = source_agent_response
+            final_response = agent_response
     except Exception as e:
         logger.exception(
             "Response conversion failed, using original response",
@@ -136,7 +126,7 @@ async def chat(
             user_id=payload.user_id,
             error=str(e),
         )
-        final_response = source_agent_response
+        final_response = agent_response
 
     total_execution_time = time.time() - start_time
     logger.info(
@@ -153,7 +143,7 @@ async def chat(
         payload.conversation_id,
         payload.user_id,
         sanitized_message,
-        source_agent_response,
+        agent_response,
         str(decision),
     )
 
@@ -162,7 +152,7 @@ async def chat(
         conversation_id=payload.conversation_id,
         router_decision=str(decision),
         response=final_response,
-        source_agent_response=source_agent_response,
+        source_agent_response=agent_response,
         agent_workflow=agent_workflow,
     )
 

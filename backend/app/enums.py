@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class Agents(StrEnum):
+    RouterAgent = "RouterAgent"
     MathAgent = "MathAgent"
     KnowledgeAgent = "KnowledgeAgent"
 

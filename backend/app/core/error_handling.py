@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.enums import SystemMessages
-from app.models import ErrorResponse
+from app.schemas import ErrorResponse
 
 logger = get_logger(__name__)
 

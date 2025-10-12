@@ -5,11 +5,8 @@ from fastapi import Depends
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from app.agents.knowledge_agent import get_query_engine
-from app.core.llm import (
-    get_math_agent_llm_client,
-    get_router_agent_llm_client,
-)
-from app.models import ChatRequest  # noqa: TC001
+from app.core.llm import get_math_agent_llm_client, get_router_agent_llm_client
+from app.schemas import ChatRequest  # noqa: TC001
 from app.security.sanitization import sanitize_user_input
 from app.services.llm_client import LLMClient
 from app.services.redis_service import RedisService

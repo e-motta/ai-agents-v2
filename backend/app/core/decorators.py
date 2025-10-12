@@ -8,7 +8,7 @@ from structlog.stdlib import BoundLogger
 
 from app.core.logging import log_agent_processing
 from app.enums import SystemMessages
-from app.models import ChatContext, WorkflowStep
+from app.schemas import GenericContext, WorkflowStep
 from app.security.constants import GRACEFUL_AGENT_EXCEPTIONS
 
 
@@ -22,7 +22,7 @@ def log_process(logger: BoundLogger, agent_name: str):
         is_async = inspect.iscoroutinefunction(func)
 
         @wraps(func)
-        async def async_wrapper(context: ChatContext):
+        async def async_wrapper(context: GenericContext):
             start_time = time.time()
             execution_time: float | None = None
 

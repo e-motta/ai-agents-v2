@@ -14,7 +14,7 @@ from app.dependencies import (
     get_router_llm,
     get_sanitized_message_from_request,
 )
-from app.models import ChatRequest
+from app.schemas import ChatRequest
 
 
 class TestGetSanitizedMessageFromRequest:
