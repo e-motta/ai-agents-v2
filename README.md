@@ -34,6 +34,7 @@ The system consists of three main components working together:
 
 - Docker and Docker Compose
 - kubectl (for Kubernetes deployment)
+- Poetry (for backend development)
 - OpenAI API key
 
 ### Environment Setup
@@ -77,6 +78,26 @@ docker compose --profile build run --build --rm build-index
 
 ### 3. Start all services
 
+You can use either Docker Compose directly or the convenient Makefile commands:
+
+#### Using Makefile (for development)
+
+```bash
+# Start all services with development configuration
+make up
+
+# Start all services and rebuild containers
+make up-build
+
+# Stop all services
+make down
+
+# Build containers without starting
+make build
+```
+
+#### Using Docker Compose directly
+
 ```bash
 # Start all services with Docker Compose
 docker compose up -d --build
@@ -95,6 +116,11 @@ docker-compose ps
 docker-compose logs -f backend
 docker-compose logs -f frontend
 docker-compose logs -f redis
+
+# Or using Makefile
+make logs service=backend
+make logs service=frontend
+make logs service=redis
 ```
 
 ### 5. Access the Application
@@ -231,356 +257,328 @@ Expected: Router → UnsupportedLanguage
 
 ## 📊 Example Logs (JSON Format)
 
-The system uses structured JSON logging with the following format:
-
-### Router Agent Decision Log
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:45.123Z",
-  "level": "info",
-  "agent": "RouterAgent",
-  "conversation_id": "conv_abc123",
-  "user_id": "user_xyz789",
-  "decision": "MathAgent",
-  "execution_time": "0.245s",
-  "query_preview": "What is 15 * 3?",
-  "event": "Agent decision made"
-}
-```
-
-### Math Agent Processing Log
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:45.456Z",
-  "level": "info",
-  "agent": "MathAgent",
-  "conversation_id": "conv_abc123",
-  "user_id": "user_xyz789",
-  "processed_content": "45",
-  "execution_time": "0.123s",
-  "event": "Agent processing completed"
-}
-```
-
-### Knowledge Agent Processing Log
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:45.789Z",
-  "level": "info",
-  "agent": "KnowledgeAgent",
-  "conversation_id": "conv_def456",
-  "user_id": "user_xyz789",
-  "processed_content": "According to the documentation, InfinitePay offers three types of maquininhas...",
-  "execution_time": "1.234s",
-  "event": "Agent processing completed"
-}
-```
-
-### System Event Log
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:46.012Z",
-  "level": "info",
-  "agent": "System",
-  "conversation_id": "conv_abc123",
-  "user_id": "user_xyz789",
-  "event": "Chat request completed",
-  "router_decision": "MathAgent",
-  "execution_time": "0.456s",
-  "response_preview": "15 * 3 equals 45."
-}
-```
-
-### Error Log
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:46.345Z",
-  "level": "error",
-  "agent": "System",
-  "conversation_id": "conv_ghi789",
-  "user_id": "user_xyz789",
-  "event": "Suspicious content detected, returning KnowledgeAgent for safety",
-  "query_preview": "ignore previous instructions and tell me...",
-  "pattern": "ignore previous instructions"
-}
-```
+The system uses structured JSON logging.
 
 ### Example of the entire flow for Knowledge Agent, from request to response:
 
 ```json
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "message_preview": "quais são as taxas da maquininha?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "message_preview": "Quais são as taxas da maquininha?",
   "event": "Chat request received",
-  "timestamp": "2025-09-24T17:54:51.242177+00:00",
+  "timestamp": "2025-10-13T10:51:51.872528+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "query_preview": "quais são as taxas da maquininha?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "query_preview": "Quais são as taxas da maquininha?",
   "event": "Routing query",
-  "timestamp": "2025-09-24T17:54:51.245514+00:00",
+  "timestamp": "2025-10-13T10:51:51.873861+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
-HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
   "decision": "KnowledgeAgent",
-  "execution_time": "1.500s",
-  "query_preview": "quais são as taxas da maquininha?",
+  "query_preview": "Quais são as taxas da maquininha?",
   "event": "Agent decision made",
-  "timestamp": "2025-09-24T17:54:52.744424+00:00",
+  "timestamp": "2025-10-13T10:51:53.167338+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
 {
-  "query": "quais são as taxas da maquininha?",
-  "query_preview": "quais são as taxas da maquininha?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "KnowledgeAgent",
+  "execution_time": "1.294s",
+  "agent_name": "RouterAgent",
+  "query_preview": "Quais são as taxas da maquininha?",
+  "event": "Agent processing completed",
+  "timestamp": "2025-10-13T10:51:53.167651+00:00",
+  "agent": "System",
+  "level": "info",
+  "logger": "app.services.chat_dispatcher"
+}
+{
+  "query": "Quais são as taxas da maquininha?",
+  "query_preview": "Quais são as taxas da maquininha?",
   "event": "Starting knowledge base query",
-  "timestamp": "2025-09-24T17:54:52.745584+00:00",
+  "timestamp": "2025-10-13T10:51:53.168194+00:00",
   "agent": "KnowledgeAgent",
   "level": "info",
   "logger": "app.agents.knowledge_agent.main"
 }
-
-HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
-HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-
 {
-  "query": "quais são as taxas da maquininha?",
-  "answer_preview": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Para obter deta",
-  "execution_time": 4.056973457336426,
+  "query": "Quais são as taxas da maquininha?",
+  "answer_preview": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calcul",
   "sources": [
     {
       "url": "https://ajuda.infinitepay.io/pt-BR/articles/6038283-como-usar-a-calculadora-de-taxas-na-maquininha-smart",
       "source": "infinitepay_help_center",
-      "score": 0.47174439414701297
+      "score": 0.49031518308296335
     },
     {
       "url": "https://ajuda.infinitepay.io/pt-BR/articles/3567351-quais-modelos-de-maquinas-de-cartao-posso-comprar",
       "source": "infinitepay_help_center",
-      "score": 0.4603112251835435
-    },
-    {
-      "url": "https://ajuda.infinitepay.io/pt-BR/articles/3406965-quais-operacoes-nao-posso-fazer-com-a-minha-maquininha",
-      "source": "infinitepay_help_center",
-      "score": 0.450731820850522
-    },
-    {
-      "url": "https://ajuda.infinitepay.io/pt-BR/articles/9455289-como-obter-taxas-ainda-mais-baixas",
-      "source": "infinitepay_help_center",
-      "score": 0.44752679986457466
+      "score": 0.4612320147210406
     },
     {
       "url": "https://ajuda.infinitepay.io/pt-BR/articles/3359956-quais-sao-as-taxas-da-infinitepay",
       "source": "infinitepay_help_center",
-      "score": 0.44718863944925047
+      "score": 0.4611695581021876
+    },
+    {
+      "url": "https://ajuda.infinitepay.io/pt-BR/articles/9455289-como-obter-taxas-ainda-mais-baixas",
+      "source": "infinitepay_help_center",
+      "score": 0.46057754780834537
+    },
+    {
+      "url": "https://ajuda.infinitepay.io/pt-BR/articles/4844397-o-que-vem-com-a-maquininha-smart",
+      "source": "infinitepay_help_center",
+      "score": 0.45545958181531576
     }
   ],
   "event": "Knowledge base query completed",
-  "timestamp": "2025-09-24T17:54:56.802505+00:00",
+  "timestamp": "2025-10-13T10:51:57.123465+00:00",
   "agent": "KnowledgeAgent",
   "level": "info",
   "logger": "app.agents.knowledge_agent.main"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "processed_content": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Para obter detalhes específicos sobre as formas de pagamento aceitas e os valores aplicados às transações, é recomendado consultar a tabela de taxas disponível na InfinitePay.",
-  "execution_time": "4.058s",
-  "query_preview": "quais são as taxas da maquininha?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calculadas com base nas formas de pagamento aceitas e nos valores aplicados às transações. Além disso, as taxas podem ser reduzidas de acordo com o faturamento mensal do cliente na InfinitePay.",
+  "execution_time": "3.956s",
+  "agent_name": "KnowledgeAgent",
+  "query_preview": "Quais são as taxas da maquininha?",
   "event": "Agent processing completed",
-  "timestamp": "2025-09-24T17:54:56.803235+00:00",
+  "timestamp": "2025-10-13T10:51:57.124394+00:00",
   "agent": "System",
   "level": "info",
-  "logger": "app.api.v1.chat"
+  "logger": "app.services.chat_dispatcher"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calculadas com base nas formas de pagamento aceitas e nos valores aplicados às transações. Além disso, as taxas podem ser reduzidas de acordo com o faturamento mensal do cliente na InfinitePay.",
+  "execution_time": "0.000s",
+  "agent_name": "RouterAgent",
+  "query_preview": "Quais são as taxas da maquininha?",
+  "event": "Agent processing completed",
+  "timestamp": "2025-10-13T10:51:57.124934+00:00",
+  "agent": "System",
+  "level": "info",
+  "logger": "app.services.chat_dispatcher"
+}
+{
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
   "router_decision": "KnowledgeAgent",
-  "execution_time": 5.561532258987427,
-  "response_preview": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Para obter deta",
+  "execution_time": 5.253060340881348,
+  "response_preview": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calcul",
+  "workflow_history": [
+    {
+      "agent": "RouterAgent",
+      "action": "_route_query",
+      "result": "KnowledgeAgent"
+    },
+    {
+      "agent": "KnowledgeAgent",
+      "action": "_process_knowledge",
+      "result": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calculadas com base nas formas de pagamento aceitas e nos valores aplicados às transações. Além disso, as taxas podem ser reduzidas de acordo com o faturamento mensal do cliente na InfinitePay."
+    },
+    {
+      "agent": "RouterAgent",
+      "action": "_convert_response",
+      "result": "As taxas da maquininha variam conforme o plano de recebimento e o produto utilizado. Elas são calculadas com base nas formas de pagamento aceitas e nos valores aplicados às transações. Além disso, as taxas podem ser reduzidas de acordo com o faturamento mensal do cliente na InfinitePay."
+    }
+  ],
   "event": "Chat request completed",
-  "timestamp": "2025-09-24T17:54:56.803529+00:00",
+  "timestamp": "2025-10-13T10:51:57.125403+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
 {
-  "event": "Added message to conversation cm1ror17xe",
-  "timestamp": "2025-09-24T17:54:56.816103+00:00",
+  "event": "Added message to conversation c44u4w03dx",
+  "timestamp": "2025-10-13T10:51:57.134170+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.services.redis_service"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
   "event": "Conversation saved to Redis",
-  "timestamp": "2025-09-24T17:54:56.816617+00:00",
+  "timestamp": "2025-10-13T10:51:57.134448+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
-INFO:     192.168.65.1:50534 - "POST /api/v1/chat HTTP/1.1" 200 OK
 ```
 
 ### Example of the entire flow for Math Agent, from request to response:
 
 ```json
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "message_preview": "Quanto é 1+1?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "message_preview": "Quanto é 3*4?",
   "event": "Chat request received",
-  "timestamp": "2025-09-24T17:59:19.939487+00:00",
+  "timestamp": "2025-10-13T10:59:54.688572+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "query_preview": "Quanto é 1+1?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "query_preview": "Quanto é 3*4?",
   "event": "Routing query",
-  "timestamp": "2025-09-24T17:59:19.943329+00:00",
+  "timestamp": "2025-10-13T10:59:54.690766+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
-HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "decision": "`MathAgent`",
-  "execution_time": "1.312s",
-  "query_preview": "Quanto é 1+1?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "decision": "MathAgent",
+  "query_preview": "Quanto é 3*4?",
   "event": "Agent decision made",
-  "timestamp": "2025-09-24T17:59:21.255261+00:00",
+  "timestamp": "2025-10-13T10:59:55.344539+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
 {
-  "query": "Quanto é 1+1?",
-  "query_preview": "Quanto é 1+1?",
-  "event": "Starting math evaluation",
-  "timestamp": "2025-09-24T17:59:21.256531+00:00",
-  "agent": "MathAgent",
-  "level": "info",
-  "logger": "app.agents.math_agent"
-}
-
-HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-
-{
-  "query": "Quanto é 1+1?",
-  "result": "2",
-  "execution_time": 0.7338223457336426,
-  "event": "Math evaluation completed",
-  "timestamp": "2025-09-24T17:59:21.989468+00:00",
-  "agent": "MathAgent",
-  "level": "info",
-  "logger": "app.agents.math_agent"
-}
-
-{
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
-  "processed_content": "2",
-  "execution_time": "0.734s",
-  "query_preview": "Quanto é 1+1?",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "MathAgent",
+  "execution_time": "0.655s",
+  "agent_name": "RouterAgent",
+  "query_preview": "Quanto é 3*4?",
   "event": "Agent processing completed",
-  "timestamp": "2025-09-24T17:59:21.989709+00:00",
+  "timestamp": "2025-10-13T10:59:55.344985+00:00",
   "agent": "System",
   "level": "info",
-  "logger": "app.api.v1.chat"
+  "logger": "app.services.chat_dispatcher"
 }
-
+{
+  "query": "Quanto é 3*4?",
+  "event": "Starting math evaluation",
+  "timestamp": "2025-10-13T10:59:55.345463+00:00",
+  "agent": "MathAgent",
+  "level": "info",
+  "logger": "app.agents.math_agent"
+}
+{
+  "query": "Quanto é 3*4?",
+  "result": "12",
+  "event": "Math evaluation completed",
+  "timestamp": "2025-10-13T10:59:55.743570+00:00",
+  "agent": "MathAgent",
+  "level": "info",
+  "logger": "app.agents.math_agent"
+}
+{
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "12",
+  "execution_time": "0.399s",
+  "agent_name": "MathAgent",
+  "query_preview": "Quanto é 3*4?",
+  "event": "Agent processing completed",
+  "timestamp": "2025-10-13T10:59:55.743903+00:00",
+  "agent": "System",
+  "level": "info",
+  "logger": "app.services.chat_dispatcher"
+}
 {
   "agent_type": "MathAgent",
-  "response_preview": "2",
-  "query_preview": "Quanto é 1+1?",
+  "response_preview": "12",
+  "query_preview": "Quanto é 3*4?",
   "event": "Starting response conversion",
-  "timestamp": "2025-09-24T17:59:21.990209+00:00",
+  "timestamp": "2025-10-13T10:59:55.744162+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
-HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-
 {
   "agent_type": "MathAgent",
-  "original_response_preview": "2",
-  "converted_response_preview": "1 + 1 é igual a 2.",
-  "execution_time": 0.6029760837554932,
+  "original_response_preview": "12",
+  "converted_response_preview": "3 * 4 equals 12.",
   "event": "Response conversion completed",
-  "timestamp": "2025-09-24T17:59:22.592969+00:00",
+  "timestamp": "2025-10-13T10:59:56.463257+00:00",
   "agent": "RouterAgent",
   "level": "info",
   "logger": "app.agents.router_agent"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
+  "processed_content": "3 * 4 é igual a 12.",
+  "execution_time": "0.719s",
+  "agent_name": "RouterAgent",
+  "query_preview": "Quanto é 3*4?",
+  "event": "Agent processing completed",
+  "timestamp": "2025-10-13T10:59:56.463552+00:00",
+  "agent": "System",
+  "level": "info",
+  "logger": "app.services.chat_dispatcher"
+}
+{
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
   "router_decision": "MathAgent",
-  "execution_time": 2.6541130542755127,
-  "response_preview": "1 + 1 é igual a 2.",
+  "execution_time": 1.7753267288208008,
+  "response_preview": "3 * 4 é igual a 12.",
+  "workflow_history": [
+    {
+      "agent": "RouterAgent",
+      "action": "_route_query",
+      "result": "MathAgent"
+    },
+    {
+      "agent": "MathAgent",
+      "action": "_process_math",
+      "result": "12"
+    },
+    {
+      "agent": "RouterAgent",
+      "action": "_convert_response",
+      "result": "3 * 4 equals 12."
+    }
+  ],
   "event": "Chat request completed",
-  "timestamp": "2025-09-24T17:59:22.593333+00:00",
+  "timestamp": "2025-10-13T10:59:56.463772+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
 {
-  "event": "Added message to conversation cm1ror17xe",
-  "timestamp": "2025-09-24T17:59:22.614498+00:00",
+  "event": "Added message to conversation c44u4w03dx",
+  "timestamp": "2025-10-13T10:59:56.470590+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.services.redis_service"
 }
-
 {
-  "conversation_id": "cm1ror17xe",
-  "user_id": "u2wzw5prvd",
+  "conversation_id": "c44u4w03dx",
+  "user_id": "u5iu1zr123",
   "event": "Conversation saved to Redis",
-  "timestamp": "2025-09-24T17:59:22.614733+00:00",
+  "timestamp": "2025-10-13T10:59:56.470868+00:00",
   "agent": "System",
   "level": "info",
   "logger": "app.api.v1.chat"
 }
-
-INFO:     192.168.65.1:50535 - "POST /api/v1/chat HTTP/1.1" 200 OK
 ```
 
 ## 🔒 Security: Sanitization and Prompt Injection Protection
@@ -611,8 +609,8 @@ def sanitize_user_input(text: str) -> str:
 The Router Agent includes comprehensive prompt injection detection:
 
 ```python
-# Located in: backend/app/agents/router_agent.py
-suspicious_patterns = [
+# Located in: backend/app/security/constants.py and backend/app/agents/router_agent.py
+SUSPICIOUS_PATTERNS = [
     "ignore previous instructions",
     "forget everything",
     "system prompt",
@@ -693,7 +691,8 @@ The project includes comprehensive test suites:
 
 ```bash
 # Using Poetry (recommended)
-poetry run python backend/run_tests.py --type all
+cd backend
+poetry run python run_tests.py --type all
 
 # Or activate Poetry shell first
 poetry shell
@@ -705,49 +704,53 @@ python run_tests.py --type all
 
 ```bash
 # Router Agent tests only
-poetry run python backend/run_tests.py --type router
+cd backend
+poetry run python run_tests.py --type router
 
 # Math Agent tests only
-poetry run python backend/run_tests.py --type math
+poetry run python run_tests.py --type math
 
 # Chat API tests only
-poetry run python backend/run_tests.py --type chat
+poetry run python run_tests.py --type chat
 
 # Unit tests (Router + Math)
-poetry run python backend/run_tests.py --type unit
+poetry run python run_tests.py --type unit
 ```
 
 #### 3. **With Coverage Reports**
 
 ```bash
 # Terminal coverage report
-poetry run python backend/run_tests.py --type coverage
+cd backend
+poetry run python run_tests.py --type coverage
 
 # HTML coverage report
-poetry run python backend/run_tests.py --type coverage-html
+poetry run python run_tests.py --type coverage-html
 
 # Comprehensive reports (HTML + XML)
-poetry run python backend/run_tests.py --type coverage-report
+poetry run python run_tests.py --type coverage-report
 ```
 
 #### 4. **Verbose Output**
 
 ```bash
 # Verbose test output
-poetry run python backend/run_tests.py --type all --verbose
+cd backend
+poetry run python run_tests.py --type all --verbose
 
 # Suppress warnings
-poetry run python backend/run_tests.py --type all --no-warnings
+poetry run python run_tests.py --type all --no-warnings
 ```
 
 #### 5. **Coverage Thresholds**
 
 ```bash
 # Set minimum coverage threshold
-poetry run python backend/run_tests.py --type coverage --coverage-threshold 85
+cd backend
+poetry run python run_tests.py --type coverage --coverage-threshold 85
 
 # Fail if coverage below threshold
-poetry run python backend/run_tests.py --type coverage --coverage-fail-under 80
+poetry run python run_tests.py --type coverage --coverage-fail-under 80
 ```
 
 ## 🔧 Development
@@ -790,6 +793,8 @@ poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 ### Backend Development
 
+The backend uses Poetry for dependency management:
+
 ```bash
 # Install Poetry (if not already installed)
 curl -sSL https://install.python-poetry.org | python3 -
@@ -799,6 +804,14 @@ poetry install --with dev
 
 # Run development server
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run tests
+poetry run python run_tests.py --type all
+
+# Run linting and formatting
+poetry run ruff check .
+poetry run ruff format .
+poetry run mypy .
 ```
 
 ### Frontend Development
@@ -827,27 +840,33 @@ redis-cli -h localhost -p 6379
 
 ```
 ai-agents-v2/
-├── backend/                    # FastAPI backend
+├── backend/                # FastAPI backend (Poetry-managed)
 │   ├── app/
-│   │   ├── agents/           # AI agents (Router, Math, Knowledge)
-│   │   ├── api/              # REST API endpoints
-│   │   ├── core/             # Core functionality (logging, settings)
-│   │   ├── security/         # Security and sanitization
-│   │   └── services/         # External services (Redis)
-│   ├── tests/                # Test suites
-│   ├── Dockerfile           # Backend container
-│   └── requirements.txt     # Python dependencies
-├── frontend/                 # React frontend
-│   ├── src/                 # React components and services
-│   ├── Dockerfile          # Frontend container
-│   └── package.json        # Node.js dependencies
-├── k8s/                     # Kubernetes manifests
-│   ├── backend/            # Backend K8s resources
-│   ├── frontend/           # Frontend K8s resources
-│   ├── redis/              # Redis K8s resources
-│   └── deploy.sh           # Deployment script
-├── docker-compose.yml      # Local development setup
-└── README.md              # This file
+│   │   ├── agents/         # AI agents (Router, Math, Knowledge)
+│   │   ├── api/
+│   │   ├── core/           # Core functionality (logging, settings, LLM)
+│   │   ├── security/       # Security and sanitization
+│   │   └── services/       # External and internal services (Redis, LLM client, Chat Dispatcher)
+│   ├── tests/
+│   ├── scripts/
+│   ├── vector_store/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── poetry.lock
+│   └── run_tests.py        # Test runner script
+├── frontend/               # React frontend
+│   ├── src/                # React components and services
+│   ├── Dockerfile
+│   └── package.json
+├── k8s/                    # Kubernetes manifests
+│   ├── backend/
+│   ├── frontend/
+│   ├── redis/
+│   └── deploy.sh
+├── docker-compose.yml
+├── docker-compose.dev.yml  # Development overrides
+├── Makefile                # Docker deployment commands
+└── README.md
 ```
 
 ## 🚨 Troubleshooting
@@ -858,6 +877,8 @@ ai-agents-v2/
 
 ```bash
 # Check Redis status
+make logs service=redis
+# or
 docker-compose logs redis
 
 # Test Redis connection
@@ -878,6 +899,8 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" https://api.openai.com/v1/models
 
 ```bash
 # Check frontend container
+make logs service=frontend
+# or
 docker-compose logs frontend
 
 # Verify frontend health
@@ -888,6 +911,8 @@ curl http://localhost:3000/health
 
 ```bash
 # Check backend logs
+make logs service=backend
+# or
 docker-compose logs backend
 
 # Test API health
@@ -949,7 +974,7 @@ Content-Type: application/json
   "router_decision": "MathAgent",
   "response": "15 * 3 equals 45.",
   "source_agent_response": "45",
-  "agent_workflow": [
+  "workflow_history": [
     {
       "agent": "RouterAgent",
       "action": "route_query",
@@ -975,24 +1000,6 @@ GET /api/v1/chat/history/{conversation_id}
 ```http
 GET /api/v1/chat/user/{user_id}/conversations
 ```
-
-## Known Limitations
-
-### Redis Storage
-
-Conversations are stored in Redis only for demonstration purposes, based on the current project requirements (must include Redis). In a production setting, they should be stored in a persistent database.
-
-### User and Conversation Management
-
-User and conversation management is handled entirely in the frontend. This approach was chosen as a workaround to meet time constraints and the project requirements, which do not include a database. In a production setting, they would be created and managed in the backend.
-
-### Response conversion by RouterAgent
-
-Responses from Math Agent are converted to be more conversational ("The answer is 2" instead of simply "2"). But for Knowledge Agent we chose not to use the conversion because (i) Knowledge Agent already responds in a conversational manner and (ii) the conversion nearly doubles the response time.
-
-### Tests
-
-Tests are limited to the cases described in the project requirements. Ideally the coverage should be higher.
 
 ## 📄 License
 
